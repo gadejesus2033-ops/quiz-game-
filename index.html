@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>Quiz Battle (No Server)</title>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      background: #111;
+      color: white;
+    }
+    button, input {
+      padding: 10px;
+      margin: 5px;
+    }
+    #game { display:none; }
+  </style>
+</head>
+<body>
+
+<h1>Quiz Battle (No Firebase)</h1>
+
+<div id="menu">
+  <input id="code" placeholder="Enter / Create Code">
+  <input id="name" placeholder="Your Name">
+  <button onclick="startGame()">Join / Create</button>
+</div>
+
+<div id="game">
+  <h2 id="room"></h2>
+  <h3 id="question"></h3>
+  <div id="answers"></div>
+
+  <h3>Leaderboard</h3>
+  <ul id="board"></ul>
+</div>
+
+<script>
+const questions = [
+  { q: "2 + 2?", a: ["1","2","4","5"], correct: 2 },
+  { q: "Capital of France?", a: ["Berlin","Paris","Rome","Madrid"], correct: 1 },
+  { q: "5 x 3?", a: ["15","10","8","20"], correct: 0 }
+];
+
+let qIndex = 0;
+let name = "";
+let code = "";
+let score = 0;
+
+// 📡 shared channel (this replaces Firebase)
+let channel;
+let players = {};
+
+function startGame() {
+  name = document.getElementById("name").value;
+  code = document.getElementById("code").value;
+
+  if (!name || !code) return alert("Enter name + code");
+
+  channel = new BroadcastChannel(code);
+
+  channel.onmessage = (e) => {
+    if (e.data.type === "update") {
+      players = e.data.players;
+      renderBoard();
+    }
+    if (e.data.type === "question") {
+      qIndex = e.data.qIndex;
+      loadQuestion();
+    }
+  };
+
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("game").style.display = "block";
+  document.getElementById("room").innerText = "Room: " + code;
+
+  players[name] = 0;
+  sync();
+  loadQuestion();
+}
+
+function loadQuestion() {
+  const q = questions[qIndex];
+
+  document.getElementById("question").innerText = q.q;
+
+  const div = document.getElementById("answers");
+  div.innerHTML = "";
+
+  q.a.forEach((text, i) => {
+    const btn = document.createElement("button");
+    btn.innerText = text;
+    btn.onclick = () => answer(i);
+    div.appendChild(btn);
+  });
+}
+
+function answer(i) {
+  const q = questions[qIndex];
+
+  if (i === q.correct) {
+    players[name] += 100;
+  } else {
+    players[name] += 20;
+  }
+
+  qIndex = (qIndex + 1) % questions.length;
+
+  sync();
+  channel.postMessage({ type: "question", qIndex });
+}
+
+function sync() {
+  channel.postMessage({
+    type: "update",
+    players: players
+  });
+
+  renderBoard();
+}
+
+function renderBoard() {
+  const board = document.getElementById("board");
+  board.innerHTML = "";
+
+  Object.entries(players)
+    .sort((a,b) => b[1] - a[1])
+    .forEach(([n, s]) => {
+      const li = document.createElement("li");
+      li.innerText = n + ": " + s;
+      board.appendChild(li);
+    });
+}
+</script>
+
+</body>
+</html>
