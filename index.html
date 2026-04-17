@@ -1,204 +1,248 @@
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<title>Ball Arena ULTIMATE FINAL</title>
+<style>
+body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
+canvas { background:#222; display:block; margin:auto; }
+#ui { padding:10px; }
+button { margin:5px; padding:8px; }
+</style>
+</head>
+<body>
+
+<div id="ui">
+<button onclick="startGame()">Start</button>
+<div id="stats"></div>
+<div id="question"></div>
+</div>
+
+<canvas id="game" width="1000" height="600"></canvas>
+
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 let level = 1;
 let running = false;
+let cameraX = 0;
 
+// ===== PLAYER =====
 let player = {
-  x:100,
-  y:500,
-  vx:0,
-  vy:0,
-  energy:200,
+  x:100, y:500,
+  vx:0, vy:0,
+  energy:10000,
   speed:3,
-  jump:-9,
+  jump:-10,
+  gravity:0.5,
   onGround:false
 };
 
 const keys = {};
 document.addEventListener("keydown", e=>{
   keys[e.key]=true;
-
-  // 🔫 SHOOT
-  if(e.key === "f"){
-    bullets.push({x:player.x, y:player.y, vx:6});
+  if(e.key==="f"){
+    bullets.push({x:player.x,y:player.y,vx:7});
   }
 });
 document.addEventListener("keyup", e=>keys[e.key]=false);
 
-// 🧱 LEVEL-BASED PLATFORMS
-function getPlatforms() {
-  if(level === 1){
-    return [
-      {x:0,y:550,w:1000,h:50},
-      {x:200,y:450,w:150,h:20},
-      {x:400,y:380,w:150,h:20},
-      {x:650,y:320,w:150,h:20}
-    ];
-  }
+// ===== WORLD WIDTH =====
+let worldWidth = 2000;
 
-  if(level === 2){
-    return [
-      {x:0,y:550,w:1000,h:50},
-      {x:300,y:450,w:100,h:20},
-      {x:500,y:350,w:100,h:20},
-      {x:750,y:250,w:100,h:20}
-    ];
-  }
-
-  return [
-    {x:0,y:550,w:1000,h:50},
-    {x:150,y:480,w:100,h:20},
-    {x:350,y:400,w:100,h:20},
-    {x:550,y:300,w:100,h:20},
-    {x:750,y:220,w:100,h:20}
-  ];
-}
-
-// 💀 DOGS
-function getDogs() {
-  let speed = 0.8 + level * 0.2;
-
-  return [
-    {x:300,y:520,dir:1,speed},
-    {x:600,y:520,dir:-1,speed},
-    {x:800,y:520,dir:1,speed}
-  ];
-}
-
-let dogs = getDogs();
+// ===== OBJECTS =====
+let dogs = [];
 let bullets = [];
+let coins = [];
+let hazards = [];
+let movingPlatform = {x:600,y:350,w:120,h:20,dir:1};
 
-// 🧠 QUESTIONS
+// ===== LEVEL SETUP =====
+function setupLevel(){
+  dogs = getDogs();
+  spawnCoins();
+
+  hazards = [];
+  hazards.push({x:800,y:540,w:150,h:10});
+  hazards.push({x:1400,y:540,w:150,h:10});
+
+  if(level === 5){
+    dogs = [{x:1500,y:400,hp:40,dir:1,speed:2,boss:true}];
+  }
+}
+
+// ===== PLATFORMS =====
+function getPlatforms(){
+  return [
+    {x:0,y:550,w:2000,h:50},
+
+    {x:300,y:450,w:150,h:20},
+    {x:600,y:380,w:150,h:20},
+    movingPlatform,
+    {x:1200,y:320,w:150,h:20},
+    {x:1500,y:260,w:150,h:20}
+  ];
+}
+
+// ===== ENEMIES =====
+function getDogs(){
+  let enemies=[];
+  for(let i=0;i<level+3;i++){
+    let t=Math.floor(Math.random()*3);
+    let x = 300 + i*300;
+
+    if(t===0) enemies.push({x,y:520,dir:1,speed:0.6,type:"tank"});
+    if(t===1) enemies.push({x,y:520,dir:1,speed:2.5,type:"fast"});
+    if(t===2) enemies.push({x,y:520,dir:1,speed:1.2,type:"jumper",vy:0});
+  }
+  return enemies;
+}
+
+// ===== COINS =====
+function spawnCoins(){
+  coins=[];
+  for(let i=0;i<15;i++){
+    coins.push({
+      x:Math.random()*worldWidth,
+      y:Math.random()*400+100
+    });
+  }
+}
+
+// ===== QUESTIONS =====
 let currentQ;
 
-function makeQuestion() {
-  let max = 5 + level * 5;
-  let a = Math.floor(Math.random()*max)+1;
-  let b = Math.floor(Math.random()*max)+1;
+function makeQuestion(){
+  let a=Math.floor(Math.random()*20)+1;
+  let b=Math.floor(Math.random()*20)+1;
 
-  let correct;
-  let text;
-
-  if(level >= 3){
-    correct = a * b;
-    text = `${a} × ${b} = ?`;
-  } else {
-    correct = a + b;
-    text = `${a} + ${b} = ?`;
-  }
-
-  let answers = [correct, correct+2, correct-1, correct+4];
+  let correct = (level>=3)?a*b:a+b;
+  let answers=[correct,correct+2,correct-1,correct+4];
   answers.sort(()=>Math.random()-0.5);
 
-  currentQ = { text, correct, answers };
+  currentQ={correct};
 
-  let html = "<b>" + text + "</b><br>";
+  let html="<b>"+a+(level>=3?" × ":" + ")+b+" = ?</b><br>";
   answers.forEach(ans=>{
-    html += `<button onclick="check(${ans})">${ans}</button>`;
+    html+=`<button onclick="check(${ans})">${ans}</button>`;
   });
 
-  document.getElementById("question").innerHTML = html;
+  document.getElementById("question").innerHTML=html;
 }
 
 function check(ans){
-  if(ans === currentQ.correct){
-    player.energy += 20;
+  if(ans===currentQ.correct){
+    player.energy+=1000;
   } else {
-    player.energy -= 10;
+    player.energy-=200;
   }
   makeQuestion();
 }
 
-// 🎮 START
-function startGame(){
-  if(running) return;
-  running = true;
-
-  makeQuestion();
-  loop();
-}
-
-// 🎮 MOVEMENT
+// ===== MOVEMENT =====
 function move(){
-  if(player.energy <= 0) return;
+  if(player.energy<=0) return;
 
-  let moving=false;
+  if(keys["ArrowLeft"]) player.vx-=0.4;
+  if(keys["ArrowRight"]) player.vx+=0.4;
 
-  if(keys["ArrowLeft"]){
-    player.vx=-player.speed;
-    moving=true;
-  }
-  else if(keys["ArrowRight"]){
-    player.vx=player.speed;
-    moving=true;
-  }
-  else player.vx*=0.8;
-
-  if(moving) player.energy -= 0.2;
+  player.vx*=0.9;
 
   if(keys[" "] && player.onGround){
     player.vy=player.jump;
     player.onGround=false;
   }
 
-  player.vy += (player.vy > 0) ? 0.2 : 0.4;
+  player.vy+=player.gravity;
 
-  player.x += player.vx;
-  player.y += player.vy;
+  player.x+=player.vx;
+  player.y+=player.vy;
 
   player.onGround=false;
 
-  for(let p of getPlatforms()){
+  getPlatforms().forEach(p=>{
     if(player.x>p.x && player.x<p.x+p.w &&
        player.y+15>p.y && player.y<p.y+p.h){
       player.y=p.y-15;
       player.vy=0;
       player.onGround=true;
     }
+  });
+
+  player.energy-=0.2;
+}
+
+// ===== CAMERA =====
+function updateCamera(){
+  cameraX = player.x - 400;
+  if(cameraX < 0) cameraX = 0;
+  if(cameraX > worldWidth - 1000){
+    cameraX = worldWidth - 1000;
   }
 }
 
-// 💀 ENEMIES
+// ===== MOVING PLATFORM =====
+function movePlatforms(){
+  movingPlatform.x+=movingPlatform.dir*2;
+  if(movingPlatform.x<500||movingPlatform.x>900){
+    movingPlatform.dir*=-1;
+  }
+}
+
+// ===== ENEMIES =====
 function moveDogs(){
-  for (let i = dogs.length - 1; i >= 0; i--) {
-    let d = dogs[i];
+  for(let i=dogs.length-1;i>=0;i--){
+    let d=dogs[i];
 
-    d.x += d.dir * d.speed;
-    if(d.x < 0 || d.x > 950) d.dir *= -1;
+    d.x+=d.dir*d.speed;
+    if(d.x<0||d.x>worldWidth) d.dir*=-1;
 
-    let dx = Math.abs(player.x - d.x);
-    let dy = player.y - d.y;
+    if(d.type==="jumper"){
+      d.vy+=0.5;
+      d.y+=d.vy;
+      if(d.y>520){d.y=520; d.vy=-9;}
+    }
 
-    // ⚔️ STOMP
-    if(dx < 25 && dy > -25 && dy < 0 && player.vy > 0){
-      dogs.splice(i,1);
-      player.vy = -6;
-      player.energy += 10;
+    let dx=Math.abs(player.x-d.x);
+    let dy=player.y-d.y;
+
+    if(dx<25 && dy>-25 && dy<0 && player.vy>0){
+      if(d.boss){
+        d.hp--;
+        if(d.hp<=0){
+          alert("YOU WIN!");
+          location.reload();
+        }
+      } else {
+        dogs.splice(i,1);
+      }
+      player.vy=-8;
       continue;
     }
 
-    // 💀 DAMAGE
-    if(dx < 25 && Math.abs(player.y - d.y) < 25){
-      player.energy -= 0.5;
+    if(dx<25 && Math.abs(player.y-d.y)<25){
+      player.energy-=3;
     }
   }
 }
 
-// 🔫 BULLETS
+// ===== BULLETS =====
 function moveBullets(){
-  for(let i = bullets.length-1; i>=0; i--){
-    let b = bullets[i];
-    b.x += b.vx;
+  for(let i=bullets.length-1;i>=0;i--){
+    let b=bullets[i];
+    b.x+=b.vx;
 
-    if(b.x > 1000) bullets.splice(i,1);
+    if(b.x>worldWidth) bullets.splice(i,1);
 
-    for(let j = dogs.length-1; j>=0; j--){
-      let d = dogs[j];
-
-      if(Math.abs(b.x - d.x) < 15 && Math.abs(b.y - d.y) < 15){
-        dogs.splice(j,1);
+    for(let j=dogs.length-1;j>=0;j--){
+      let d=dogs[j];
+      if(Math.abs(b.x-d.x)<15 && Math.abs(b.y-d.y)<15){
+        if(d.boss){
+          d.hp--;
+        } else {
+          dogs.splice(j,1);
+        }
         bullets.splice(i,1);
         break;
       }
@@ -206,33 +250,45 @@ function moveBullets(){
   }
 }
 
-// 🏁 LEVELS
-function checkLevel(){
-  if(player.x>950){
-    level++;
-
-    if(level>5){
-      alert("YOU WIN!");
-      location.reload();
+// ===== COINS =====
+function collectCoins(){
+  for(let i=coins.length-1;i>=0;i--){
+    let c=coins[i];
+    if(Math.abs(player.x-c.x)<20 && Math.abs(player.y-c.y)<20){
+      coins.splice(i,1);
+      player.energy+=50;
     }
-
-    player.x=100;
-    player.y=500;
-    player.energy += 50;
-
-    dogs=getDogs();
   }
 }
 
-// 🎨 DRAW
+// ===== HAZARDS =====
+function checkHazards(){
+  hazards.forEach(h=>{
+    if(player.x>h.x && player.x<h.x+h.w && player.y>h.y){
+      player.energy-=5;
+    }
+  });
+}
+
+// ===== DRAW =====
 function draw(){
   ctx.clearRect(0,0,1000,600);
+
+  ctx.save();
+  ctx.translate(-cameraX,0);
 
   ctx.fillStyle="#444";
   getPlatforms().forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
 
-  ctx.fillStyle="gold";
-  ctx.fillRect(950,200,30,200);
+  ctx.fillStyle="red";
+  hazards.forEach(h=>ctx.fillRect(h.x,h.y,h.w,h.h));
+
+  ctx.fillStyle="yellow";
+  coins.forEach(c=>{
+    ctx.beginPath();
+    ctx.arc(c.x,c.y,8,0,Math.PI*2);
+    ctx.fill();
+  });
 
   ctx.fillStyle="brown";
   dogs.forEach(d=>{
@@ -242,29 +298,34 @@ function draw(){
   });
 
   ctx.fillStyle="red";
-  bullets.forEach(b=>{
-    ctx.fillRect(b.x, b.y, 5, 5);
-  });
+  bullets.forEach(b=>ctx.fillRect(b.x,b.y,5,5));
 
   ctx.beginPath();
   ctx.arc(player.x,player.y,15,0,Math.PI*2);
   ctx.fillStyle="cyan";
   ctx.fill();
+
+  ctx.fillStyle="gold";
+  ctx.fillRect(1800,200,30,200);
+
+  ctx.restore();
 }
 
-// 🔁 LOOP
+// ===== LOOP =====
 function loop(){
   move();
+  movePlatforms();
   moveDogs();
   moveBullets();
-  checkLevel();
+  collectCoins();
+  checkHazards();
+  updateCamera();
   draw();
 
   document.getElementById("stats").innerText =
     "Level: "+level+" | Energy: "+Math.floor(player.energy);
 
-  // 💀 GAME OVER
-  if(player.energy <= 0){
+  if(player.energy<=0){
     alert("Game Over!");
     location.reload();
     return;
@@ -272,4 +333,17 @@ function loop(){
 
   requestAnimationFrame(loop);
 }
+
+// ===== START =====
+function startGame(){
+  if(running) return;
+  running=true;
+  setupLevel();
+  makeQuestion();
+  loop();
+}
 </script>
+
+</body>
+</html>
+```
