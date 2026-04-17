@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena ULTIMATE FINAL++</title>
+<title>Ball Arena ULTIMATE FINAL+++</title>
 <style>
 body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
 canvas { background:#222; display:block; margin:auto; }
@@ -35,22 +35,19 @@ let player = {
   vx:0, vy:0,
   energy:10000,
   speed:3,
-
-  // ✅ HIGHER JUMP
   jump:-14,
-
-  // ✅ BETTER GRAVITY
   gravity:0.45,
-
   onGround:false,
   jumps:0,
   maxJumps:2
 };
 
+// ===== PORTAL =====
+let portal = { x:1800, y:200, w:30, h:200 };
+
 const keys = {};
 document.addEventListener("keydown", e=>{
   keys[e.key]=true;
-
   if(e.key==="f"){
     bullets.push({x:player.x,y:player.y,vx:7});
   }
@@ -155,13 +152,11 @@ function move(){
 
   player.vx*=0.9;
 
-  // ✅ DOUBLE JUMP + HIGHER JUMP
   if(keys[" "] && player.jumps < player.maxJumps){
     player.vy = player.jump * (player.jumps === 0 ? 1 : 0.8);
     player.jumps++;
   }
 
-  // ✅ VARIABLE JUMP HEIGHT
   if(keys[" "]){
     player.vy += player.gravity * 0.6;
   } else {
@@ -179,7 +174,7 @@ function move(){
       player.y=p.y-15;
       player.vy=0;
       player.onGround=true;
-      player.jumps = 0;
+      player.jumps=0;
     }
   });
 
@@ -280,6 +275,29 @@ function checkHazards(){
   });
 }
 
+// ===== PORTAL CHECK =====
+function checkLevel(){
+  if(player.x > portal.x &&
+     player.x < portal.x + portal.w &&
+     player.y > portal.y &&
+     player.y < portal.y + portal.h){
+
+    level++;
+
+    if(level > 5){
+      alert("YOU WIN ALL LEVELS!");
+      location.reload();
+      return;
+    }
+
+    player.x = 100;
+    player.y = 500;
+    player.energy += 500;
+
+    setupLevel();
+  }
+}
+
 // ===== DRAW =====
 function draw(){
   ctx.clearRect(0,0,1000,600);
@@ -315,8 +333,12 @@ function draw(){
   ctx.fillStyle="cyan";
   ctx.fill();
 
+  // ⭐ PORTAL (with glow)
+  ctx.fillStyle="rgba(255,215,0,0.3)";
+  ctx.fillRect(portal.x-5, portal.y-5, portal.w+10, portal.h+10);
+
   ctx.fillStyle="gold";
-  ctx.fillRect(1800,200,30,200);
+  ctx.fillRect(portal.x, portal.y, portal.w, portal.h);
 
   ctx.restore();
 }
@@ -329,6 +351,7 @@ function loop(){
   moveBullets();
   collectCoins();
   checkHazards();
+  checkLevel(); // ⭐ WORKING NOW
   updateCamera();
   draw();
 
