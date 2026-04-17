@@ -2,18 +2,23 @@
 
 <html>
 <head>
-  <title>Ball vs Dogs + Math</title>
+  <title>Ball Arena FINAL</title>
   <style>
-    body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
+    body { margin:0; background:#111; color:white; font-family:Arial; overflow:hidden; }
     canvas { background:#222; display:block; margin:auto; }
     #ui { padding:10px; }
-    .ans {
-      position:absolute;
-      background:#444;
-      padding:8px;
-      border:1px solid white;
-      cursor:pointer;
-    }
+
+```
+.ans {
+  position:absolute;
+  background:#444;
+  padding:10px;
+  border:1px solid white;
+  cursor:pointer;
+  user-select:none;
+}
+```
+
   </style>
 </head>
 <body>
@@ -57,9 +62,10 @@ function getPlatforms() {
   ];
 }
 
-// 💀 DOGS
+// 💀 DOG ENEMIES (SLOW + FAIR)
 function getDogs() {
-  let speed = 1 + level * 0.4;
+  let speed = 0.6 + level * 0.15;
+
   return [
     {x:300,y:520,dir:1,speed},
     {x:600,y:520,dir:-1,speed},
@@ -77,11 +83,13 @@ function makeQuestion() {
   let b = Math.floor(Math.random()*10)+1;
 
   let correct = a + b;
-  let wrong1 = correct + 3;
-  let wrong2 = correct - 2;
-  let wrong3 = correct + 5;
+  let wrong = [
+    correct + 3,
+    correct - 2,
+    correct + 5
+  ];
 
-  let answers = [correct, wrong1, wrong2, wrong3];
+  let answers = [correct, ...wrong];
   answers.sort(()=>Math.random()-0.5);
 
   currentQ = { text:`${a} + ${b} = ?`, correct, answers };
@@ -110,6 +118,7 @@ function check(ans){
   } else {
     player.energy -= 300;
   }
+
   makeQuestion();
 }
 
@@ -119,7 +128,7 @@ function startGame(){
   loop();
 }
 
-// 🎮 MOVE
+// 🎮 MOVEMENT + ENERGY (FIXED)
 function move(){
   if(player.energy<=0) return;
 
@@ -135,14 +144,14 @@ function move(){
   }
   else player.vx*=0.8;
 
-  if(moving) player.energy -= 10;
+  if(moving) player.energy -= 10; // ⚡ movement cost
 
   if(keys[" "] && player.onGround){
     player.vy=player.jump;
     player.onGround=false;
   }
 
-  player.vy += 0.5;
+  player.vy += 0.35; // 🪂 smooth gravity
 
   player.x += player.vx;
   player.y += player.vy;
@@ -159,19 +168,20 @@ function move(){
   }
 }
 
-// 💀 DOGS
+// 💀 DOGS (NO SPEED BOOST, FIXED DAMAGE)
 function moveDogs(){
   dogs.forEach(d=>{
     d.x += d.dir*d.speed;
+
     if(d.x<0 || d.x>950) d.dir*=-1;
 
     if(Math.abs(player.x-d.x)<25 && Math.abs(player.y-d.y)<25){
-      player.energy -= 30;
+      player.energy -= 10; // fixed damage only
     }
   });
 }
 
-// 🏁 LEVELS
+// 🏁 LEVEL SYSTEM
 function checkLevel(){
   if(player.x>950){
     level++;
