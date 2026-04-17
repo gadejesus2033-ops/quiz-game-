@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena ULTIMATE FINAL+</title>
+<title>Ball Arena ULTIMATE FINAL++</title>
 <style>
 body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
 canvas { background:#222; display:block; margin:auto; }
@@ -35,11 +35,14 @@ let player = {
   vx:0, vy:0,
   energy:10000,
   speed:3,
-  jump:-10,
-  gravity:0.5,
-  onGround:false,
 
-  // ✅ DOUBLE JUMP
+  // ✅ HIGHER JUMP
+  jump:-14,
+
+  // ✅ BETTER GRAVITY
+  gravity:0.45,
+
+  onGround:false,
   jumps:0,
   maxJumps:2
 };
@@ -152,13 +155,18 @@ function move(){
 
   player.vx*=0.9;
 
-  // ✅ DOUBLE JUMP LOGIC
+  // ✅ DOUBLE JUMP + HIGHER JUMP
   if(keys[" "] && player.jumps < player.maxJumps){
     player.vy = player.jump * (player.jumps === 0 ? 1 : 0.8);
     player.jumps++;
   }
 
-  player.vy+=player.gravity;
+  // ✅ VARIABLE JUMP HEIGHT
+  if(keys[" "]){
+    player.vy += player.gravity * 0.6;
+  } else {
+    player.vy += player.gravity * 1.2;
+  }
 
   player.x+=player.vx;
   player.y+=player.vy;
@@ -171,8 +179,6 @@ function move(){
       player.y=p.y-15;
       player.vy=0;
       player.onGround=true;
-
-      // ✅ RESET JUMPS
       player.jumps = 0;
     }
   });
