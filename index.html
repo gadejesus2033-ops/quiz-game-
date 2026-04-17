@@ -1,134 +1,49 @@
-<!DOCTYPE html>
-
-<html>
-<head>
-  <title>Ball Arena Big View</title>
-  <style>
-    body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
-
-```
-canvas {
-  background:#222;
-  display:block;
-  margin:auto;
-  width: 1000px;   /* 👈 BIGGER VIEW */
-  height: 600px;   /* 👈 BIGGER VIEW */
-}
-
-.answer {
-  position:absolute;
-  background:#444;
-  color:white;
-  padding:8px;
-  border:1px solid white;
-  cursor:pointer;
-}
-
-#ui { padding:10px; }
-```
-
-  </style>
-</head>
-<body>
-
-<div id="ui">
-  <button onclick="startGame()">Start</button>
-  <div id="stats"></div>
-</div>
-
-<canvas id="game" width="1000" height="600"></canvas>
-
-<script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-
-let player = {
-  x:200,
-  y:200,
-  vx:0,
-  vy:0,
-  energy:1500,
-  speed:3,
-  jump:-8,
-  onGround:false
-};
-
-const keys = {};
-
-document.addEventListener("keydown", e => keys[e.key]=true);
-document.addEventListener("keyup", e => keys[e.key]=false);
-
-function startGame() {
-  loadQuestion();
-  loop();
-}
-
-// 🎯 BIGGER WORLD BOUNDS
 function move() {
-  if (player.energy <= 0) return;
+if (player.energy <= 0) return;
 
-  if (keys["ArrowLeft"]) {
-    player.vx = -player.speed;
-    player.energy -= 10;
-  }
-  else if (keys["ArrowRight"]) {
-    player.vx = player.speed;
-    player.energy -= 10;
-  }
-  else player.vx *= 0.8;
+let moving = false;
 
-  if (keys[" "] && player.onGround) {
-    player.vy = player.jump;
-    player.onGround = false;
-  }
-
-  player.vy += 0.5;
-
-  player.x += player.vx;
-  player.y += player.vy;
-
-  // 👇 bigger floor (because view is bigger)
-  if (player.y >= 550) {
-    player.y = 550;
-    player.vy = 0;
-    player.onGround = true;
-  }
-
-  if (player.x < 0) player.x = 0;
-  if (player.x > 980) player.x = 980;
+if (keys["ArrowLeft"]) {
+player.vx = -player.speed;
+moving = true;
+}
+else if (keys["ArrowRight"]) {
+player.vx = player.speed;
+moving = true;
+}
+else {
+player.vx *= 0.8;
 }
 
-// 🎨 DRAW BIGGER WORLD
-function draw() {
-  ctx.clearRect(0,0,1000,600);
-
-  // floor
-  ctx.fillStyle="#444";
-  ctx.fillRect(0,570,1000,30);
-
-  // player
-  ctx.beginPath();
-  ctx.arc(player.x,player.y,15,0,Math.PI*2);
-  ctx.fillStyle="cyan";
-  ctx.fill();
+// ⚡ ENERGY DRAIN FIX (only when actually moving)
+if (moving) {
+player.energy -= 10;
 }
 
-// simple question system
-function loadQuestion() {
-  document.getElementById("stats").innerText =
-    "Energy: " + player.energy;
+if (keys[" "] && player.onGround) {
+player.vy = player.jump;
+player.onGround = false;
 }
 
-function loop() {
-  move();
-  draw();
+player.vy += 0.5;
 
-  document.getElementById("stats").innerText =
-    "Energy: " + player.energy;
+player.x += player.vx;
+player.y += player.vy;
 
-  requestAnimationFrame(loop);
+player.onGround = false;
+
+let plats = getPlatforms();
+
+for (let p of plats) {
+if (
+player.x > p.x &&
+player.x < p.x + p.w &&
+player.y + 15 > p.y &&
+player.y < p.y + p.h
+) {
+player.y = p.y - 15;
+player.vy = 0;
+player.onGround = true;
 }
-</script>
-
-</body>
-</html>
+}
+}
