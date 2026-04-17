@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena</title>
+<title>Ball Arena FINAL</title>
 <style>
 body { margin:0; background:#111; text-align:center; overflow:hidden; color:white; }
 canvas { background:#222; display:block; margin:auto; }
@@ -25,7 +25,7 @@ let level=1;
 let gameState="menu";
 let cameraX=0;
 
-// ===== PLAYER (BALL) =====
+// ===== PLAYER =====
 let player={
   x:100,y:400,
   vx:0,vy:0,
@@ -37,7 +37,6 @@ let player={
   energy:100
 };
 
-let jumpHeld=false;
 const keys={};
 
 // ===== WORLD =====
@@ -48,18 +47,15 @@ let portal={x:1800,y:200,w:40,h:80};
 document.addEventListener("keydown",e=>{
   keys[e.key]=true;
 
-  if(e.key===" ") jumpHeld=true;
-
   if(e.key==="f"){
     bullets.push({x:player.x,y:player.y,vx:6});
   }
 });
 document.addEventListener("keyup",e=>{
   keys[e.key]=false;
-  if(e.key===" ") jumpHeld=false;
 });
 
-// ===== LEVEL GENERATION =====
+// ===== LEVEL =====
 function generateLevel(){
   platforms=[];
   enemies=[];
@@ -86,7 +82,7 @@ function generateLevel(){
         x:300+i*250,
         y:520,
         dir:1,
-        speed:1+Math.random()
+        speed:1.2
       });
     }
   }else{
@@ -99,7 +95,7 @@ function generateLevel(){
   }
 }
 
-// ===== PLAYER MOVEMENT =====
+// ===== PLAYER =====
 function movePlayer(){
 
   if(keys["ArrowLeft"]) player.vx-=player.speed;
@@ -107,49 +103,56 @@ function movePlayer(){
 
   player.vx*=0.9;
 
-  // jump start
+  // smooth jump
   if(keys[" "] && player.onGround){
-    player.vy=player.jump;
-    player.onGround=false;
+    player.vy = player.jump;
+    player.onGround = false;
   }
 
-  // variable jump
-  if(!jumpHeld && player.vy<0){
-    player.vy+=0.5;
+  if(!keys[" "] && player.vy < 0){
+    player.vy += 0.4;
   }
 
-  player.vy+=player.gravity;
+  player.vy += player.gravity;
 
-  player.x+=player.vx;
-  player.y+=player.vy;
+  player.x += player.vx;
+  player.y += player.vy;
 
-  // collisions
+  // platform collision
   player.onGround=false;
   platforms.forEach(p=>{
-    if(player.x>p.x && player.x<p.x+p.w &&
-       player.y+player.radius>p.y && player.y<p.y+p.h){
-      player.y=p.y-player.radius;
-      player.vy=0;
-      player.onGround=true;
+    if(player.x > p.x && player.x < p.x+p.w &&
+       player.y + player.radius > p.y &&
+       player.y < p.y + p.h){
+      player.y = p.y - player.radius;
+      player.vy = 0;
+      player.onGround = true;
     }
   });
 
-  // fall reset
-  if(player.y>700){
-    player.x=100;
-    player.y=400;
-    player.energy-=10;
+  // HARD FLOOR (no falling off)
+  if(player.y > 550 - player.radius){
+    player.y = 550 - player.radius;
+    player.vy = 0;
+    player.onGround = true;
   }
+
+  // horizontal bounds
+  if(player.x < 0) player.x = 0;
+  if(player.x > 2000) player.x = 2000;
 }
 
-// ===== ENEMIES (RED BALLS) =====
+// ===== ENEMIES =====
 function moveEnemies(){
   enemies.forEach(e=>{
-    e.x+=e.dir*e.speed;
-    if(e.x<0||e.x>2000) e.dir*=-1;
+    e.x += e.dir * e.speed;
 
-    if(Math.abs(player.x-e.x)<20 && Math.abs(player.y-e.y)<20){
-      player.energy-=1;
+    if(e.x < 50 || e.x > 1950){
+      e.dir *= -1;
+    }
+
+    if(Math.abs(player.x - e.x) < 20 && Math.abs(player.y - e.y) < 20){
+      player.energy -= 0.5;
     }
   });
 }
@@ -178,7 +181,6 @@ function moveBoss(){
     boss.shootCooldown=50;
   }
 
-  // stomp damage
   if(Math.abs(player.x-boss.x)<30 && Math.abs(player.y-boss.y)<30 && player.vy>0){
     boss.hp--;
     player.vy=-8;
@@ -191,7 +193,7 @@ function moveBoss(){
 
 // ===== BULLETS =====
 function moveBullets(){
-  bullets.forEach((b,i)=>{
+  bullets.forEach(b=>{
     b.x+=b.vx;
     b.y+=b.vy||0;
 
@@ -200,9 +202,9 @@ function moveBullets(){
         player.energy-=5;
       }
     }else{
-      enemies.forEach((e,j)=>{
+      enemies.forEach((e,i)=>{
         if(Math.abs(b.x-e.x)<15 && Math.abs(b.y-e.y)<15){
-          enemies.splice(j,1);
+          enemies.splice(i,1);
         }
       });
 
@@ -215,19 +217,22 @@ function moveBullets(){
 
 // ===== PORTAL =====
 function checkPortal(){
-  if(player.x>portal.x &&
-     player.y>portal.y &&
-     player.y<portal.y+portal.h){
-
+  if(
+    player.x + player.radius > portal.x &&
+    player.x - player.radius < portal.x + portal.w &&
+    player.y + player.radius > portal.y &&
+    player.y - player.radius < portal.y + portal.h
+  ){
     level++;
 
-    if(level>5){
+    if(level > 5){
       gameState="win";
       return;
     }
 
     player.x=100;
     player.y=400;
+
     generateLevel();
   }
 }
@@ -266,7 +271,7 @@ function draw(){
   ctx.fillStyle="yellow";
   ctx.fillRect(portal.x,portal.y,portal.w,portal.h);
 
-  // enemies (red balls)
+  // enemies
   ctx.fillStyle="red";
   enemies.forEach(e=>{
     ctx.beginPath();
@@ -286,7 +291,7 @@ function draw(){
   ctx.fillStyle="orange";
   bullets.forEach(b=>ctx.fillRect(b.x,b.y,5,5));
 
-  // player (blue ball)
+  // player
   ctx.fillStyle="cyan";
   ctx.beginPath();
   ctx.arc(player.x,player.y,player.radius,0,Math.PI*2);
@@ -295,7 +300,7 @@ function draw(){
   ctx.restore();
 
   ctx.fillStyle="white";
-  ctx.fillText("Level: "+level+" HP: "+player.energy,20,20);
+  ctx.fillText("Level: "+level+" HP: "+Math.floor(player.energy),20,20);
 }
 
 // ===== LOOP =====
