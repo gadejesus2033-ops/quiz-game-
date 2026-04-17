@@ -1,59 +1,64 @@
-<!DOCTYPE html>
-
-<html>
-<head>
-  <title>Ball Arena ULTIMATE</title>
-  <style>
-    body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
-    canvas { background:#222; display:block; margin:auto; }
-    #ui { padding:10px; }
-    button { margin:5px; padding:8px; }
-  </style>
-</head>
-<body>
-
-<div id="ui">
-  <button onclick="startGame()">Start</button>
-  <div id="stats"></div>
-  <div id="question"></div>
-</div>
-
-<canvas id="game" width="1000" height="600"></canvas>
-
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 let level = 1;
+let running = false;
 
 let player = {
   x:100,
   y:500,
   vx:0,
   vy:0,
-  energy:10000, // ⚡ START ENERGY
+  energy:200,
   speed:3,
   jump:-9,
   onGround:false
 };
 
 const keys = {};
-document.addEventListener("keydown", e=>keys[e.key]=true);
+document.addEventListener("keydown", e=>{
+  keys[e.key]=true;
+
+  // 🔫 SHOOT
+  if(e.key === "f"){
+    bullets.push({x:player.x, y:player.y, vx:6});
+  }
+});
 document.addEventListener("keyup", e=>keys[e.key]=false);
 
-// 🧱 PLATFORMS
+// 🧱 LEVEL-BASED PLATFORMS
 function getPlatforms() {
+  if(level === 1){
+    return [
+      {x:0,y:550,w:1000,h:50},
+      {x:200,y:450,w:150,h:20},
+      {x:400,y:380,w:150,h:20},
+      {x:650,y:320,w:150,h:20}
+    ];
+  }
+
+  if(level === 2){
+    return [
+      {x:0,y:550,w:1000,h:50},
+      {x:300,y:450,w:100,h:20},
+      {x:500,y:350,w:100,h:20},
+      {x:750,y:250,w:100,h:20}
+    ];
+  }
+
   return [
     {x:0,y:550,w:1000,h:50},
-    {x:200,y:450,w:150,h:20},
-    {x:400,y:380,w:150,h:20},
-    {x:650,y:320,w:150,h:20}
+    {x:150,y:480,w:100,h:20},
+    {x:350,y:400,w:100,h:20},
+    {x:550,y:300,w:100,h:20},
+    {x:750,y:220,w:100,h:20}
   ];
 }
 
 // 💀 DOGS
 function getDogs() {
-  let speed = 0.6 + level * 0.15;
+  let speed = 0.8 + level * 0.2;
 
   return [
     {x:300,y:520,dir:1,speed},
@@ -63,24 +68,33 @@ function getDogs() {
 }
 
 let dogs = getDogs();
+let bullets = [];
 
 // 🧠 QUESTIONS
 let currentQ;
 
 function makeQuestion() {
-  let a = Math.floor(Math.random()*10)+1;
-  let b = Math.floor(Math.random()*10)+1;
+  let max = 5 + level * 5;
+  let a = Math.floor(Math.random()*max)+1;
+  let b = Math.floor(Math.random()*max)+1;
 
-  let correct = a + b;
-  let wrong = [correct+3, correct-2, correct+5];
+  let correct;
+  let text;
 
-  let answers = [correct, ...wrong];
+  if(level >= 3){
+    correct = a * b;
+    text = `${a} × ${b} = ?`;
+  } else {
+    correct = a + b;
+    text = `${a} + ${b} = ?`;
+  }
+
+  let answers = [correct, correct+2, correct-1, correct+4];
   answers.sort(()=>Math.random()-0.5);
 
-  currentQ = { text:`${a} + ${b} = ?`, correct, answers };
+  currentQ = { text, correct, answers };
 
-  let html = "<b>" + currentQ.text + "</b><br>";
-
+  let html = "<b>" + text + "</b><br>";
   answers.forEach(ans=>{
     html += `<button onclick="check(${ans})">${ans}</button>`;
   });
@@ -90,22 +104,25 @@ function makeQuestion() {
 
 function check(ans){
   if(ans === currentQ.correct){
-    player.energy += 1000;
+    player.energy += 20;
   } else {
-    player.energy -= 300;
+    player.energy -= 10;
   }
   makeQuestion();
 }
 
 // 🎮 START
 function startGame(){
+  if(running) return;
+  running = true;
+
   makeQuestion();
   loop();
 }
 
 // 🎮 MOVEMENT
 function move(){
-  if(player.energy<=0) return;
+  if(player.energy <= 0) return;
 
   let moving=false;
 
@@ -119,19 +136,14 @@ function move(){
   }
   else player.vx*=0.8;
 
-  if(moving) player.energy -= 10;
+  if(moving) player.energy -= 0.2;
 
   if(keys[" "] && player.onGround){
     player.vy=player.jump;
     player.onGround=false;
   }
 
-  // 🪂 FLOATY JUMP (slow fall)
-  if (player.vy > 0) {
-    player.vy += 0.15;
-  } else {
-    player.vy += 0.35;
-  }
+  player.vy += (player.vy > 0) ? 0.2 : 0.4;
 
   player.x += player.vx;
   player.y += player.vy;
@@ -148,29 +160,50 @@ function move(){
   }
 }
 
-// 💀 ENEMIES + COMBAT
+// 💀 ENEMIES
 function moveDogs(){
-  dogs.forEach((d,index)=>{
-    d.x += d.dir*d.speed;
+  for (let i = dogs.length - 1; i >= 0; i--) {
+    let d = dogs[i];
 
-    if(d.x<0 || d.x>950) d.dir*=-1;
+    d.x += d.dir * d.speed;
+    if(d.x < 0 || d.x > 950) d.dir *= -1;
 
     let dx = Math.abs(player.x - d.x);
     let dy = player.y - d.y;
 
     // ⚔️ STOMP
     if(dx < 25 && dy > -25 && dy < 0 && player.vy > 0){
-      dogs.splice(index,1);
+      dogs.splice(i,1);
       player.vy = -6;
-      player.energy += 100;
-      return;
+      player.energy += 10;
+      continue;
     }
 
     // 💀 DAMAGE
     if(dx < 25 && Math.abs(player.y - d.y) < 25){
-      player.energy -= 10;
+      player.energy -= 0.5;
     }
-  });
+  }
+}
+
+// 🔫 BULLETS
+function moveBullets(){
+  for(let i = bullets.length-1; i>=0; i--){
+    let b = bullets[i];
+    b.x += b.vx;
+
+    if(b.x > 1000) bullets.splice(i,1);
+
+    for(let j = dogs.length-1; j>=0; j--){
+      let d = dogs[j];
+
+      if(Math.abs(b.x - d.x) < 15 && Math.abs(b.y - d.y) < 15){
+        dogs.splice(j,1);
+        bullets.splice(i,1);
+        break;
+      }
+    }
+  }
 }
 
 // 🏁 LEVELS
@@ -179,13 +212,13 @@ function checkLevel(){
     level++;
 
     if(level>5){
-      alert("YOU BEAT ALL LEVELS!");
-      level=1;
+      alert("YOU WIN!");
+      location.reload();
     }
 
     player.x=100;
     player.y=500;
-    player.energy+=400;
+    player.energy += 50;
 
     dogs=getDogs();
   }
@@ -208,6 +241,11 @@ function draw(){
     ctx.fill();
   });
 
+  ctx.fillStyle="red";
+  bullets.forEach(b=>{
+    ctx.fillRect(b.x, b.y, 5, 5);
+  });
+
   ctx.beginPath();
   ctx.arc(player.x,player.y,15,0,Math.PI*2);
   ctx.fillStyle="cyan";
@@ -218,15 +256,20 @@ function draw(){
 function loop(){
   move();
   moveDogs();
+  moveBullets();
   checkLevel();
   draw();
 
   document.getElementById("stats").innerText =
-    "Level: "+level+" | Energy: "+player.energy;
+    "Level: "+level+" | Energy: "+Math.floor(player.energy);
+
+  // 💀 GAME OVER
+  if(player.energy <= 0){
+    alert("Game Over!");
+    location.reload();
+    return;
+  }
 
   requestAnimationFrame(loop);
 }
 </script>
-
-</body>
-</html>
