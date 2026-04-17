@@ -1,8 +1,8 @@
-```html
+```html id="finalfullgame"
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena ULTIMATE FINAL BOSS</title>
+<title>Ball Arena ULTIMATE FINAL FINAL</title>
 <style>
 body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
 canvas { background:#222; display:block; margin:auto; }
@@ -83,20 +83,60 @@ function setupLevel(){
 
   if(level === 5){
     dogs = [{
-      x:1500,y:300,hp:80,dir:1,speed:2,boss:true,shootCooldown:0
+      x:1500,
+      y:300,
+      hp:60,
+      dir:1,
+      speed:1.5,
+      boss:true,
+      shootCooldown:0
     }];
   }
 }
 
-// ===== PLATFORMS =====
+// ===== PLATFORMS (VARIETY) =====
 function getPlatforms(){
+  if(level === 1){
+    return [
+      {x:0,y:550,w:2000,h:50},
+      {x:300,y:450,w:150,h:20},
+      {x:600,y:380,w:150,h:20}
+    ];
+  }
+
+  if(level === 2){
+    return [
+      {x:0,y:550,w:2000,h:50},
+      {x:250,y:450,w:120,h:20},
+      {x:500,y:380,w:120,h:20},
+      {x:800,y:320,w:120,h:20}
+    ];
+  }
+
+  if(level === 3){
+    return [
+      {x:0,y:550,w:2000,h:50},
+      {x:300,y:420,w:100,h:20},
+      {x:600,y:340,w:100,h:20},
+      {x:900,y:260,w:100,h:20}
+    ];
+  }
+
+  if(level === 4){
+    return [
+      {x:0,y:550,w:2000,h:50},
+      {x:300,y:450,w:100,h:20},
+      movingPlatform,
+      {x:900,y:350,w:100,h:20},
+      {x:1200,y:300,w:100,h:20}
+    ];
+  }
+
   return [
     {x:0,y:550,w:2000,h:50},
-    {x:300,y:450,w:150,h:20},
-    {x:600,y:380,w:150,h:20},
-    movingPlatform,
-    {x:1200,y:320,w:150,h:20},
-    {x:1500,y:260,w:150,h:20}
+    {x:400,y:400,w:120,h:20},
+    {x:800,y:300,w:120,h:20},
+    {x:1200,y:400,w:120,h:20}
   ];
 }
 
@@ -210,7 +250,7 @@ function movePlatforms(){
   }
 }
 
-// ===== ENEMIES =====
+// ===== ENEMIES + BOSS =====
 function moveDogs(){
   for(let i=dogs.length-1;i>=0;i--){
     let d=dogs[i];
@@ -219,14 +259,18 @@ function moveDogs(){
       if(player.x < d.x) d.x -= d.speed;
       else d.x += d.speed;
 
+      let fireRate = d.hp < 30 ? 40 : 80;
+      let bulletSpeed = d.hp < 30 ? 6 : 4;
+
       d.shootCooldown--;
+
       if(d.shootCooldown <= 0){
         bossBullets.push({
           x:d.x,
           y:d.y,
-          vx: player.x < d.x ? -4 : 4
+          vx: player.x < d.x ? -bulletSpeed : bulletSpeed
         });
-        d.shootCooldown = 60;
+        d.shootCooldown = fireRate;
       }
     } else {
       d.x+=d.dir*d.speed;
@@ -242,7 +286,7 @@ function moveDogs(){
     let dx=Math.abs(player.x-d.x);
     let dy=player.y-d.y;
 
-    if(dx<25 && dy>-25 && dy<0 && player.vy>0){
+    if(dx < 30 && dy > -40 && dy < 10 && player.vy > 0){
       if(d.boss){
         d.hp--;
         if(d.hp<=0){
@@ -280,7 +324,7 @@ function moveBossBullets(){
   }
 }
 
-// ===== BULLETS =====
+// ===== PLAYER BULLETS =====
 function moveBullets(){
   for(let i=bullets.length-1;i>=0;i--){
     let b=bullets[i];
@@ -388,6 +432,14 @@ function draw(){
   ctx.fillRect(portal.x, portal.y, portal.w, portal.h);
 
   ctx.restore();
+
+  // ⭐ BOSS HP UI
+  dogs.forEach(d=>{
+    if(d.boss){
+      ctx.fillStyle="white";
+      ctx.fillText("Boss HP: " + d.hp, 400, 40);
+    }
+  });
 }
 
 // ===== LOOP =====
