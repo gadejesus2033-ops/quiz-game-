@@ -2,135 +2,134 @@
 
 <html>
 <head>
-  <title>Quiz Battle (No Server)</title>
+  <title>Ball Arena Codes</title>
   <style>
-    body {
-      font-family: Arial;
-      text-align: center;
-      background: #111;
-      color: white;
-    }
-    button, input {
-      padding: 10px;
-      margin: 5px;
-    }
-    #game { display:none; }
+    body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; }
+    canvas { background:#222; display:block; margin:auto; }
+    input, button { padding:8px; margin:5px; }
+    #ui { padding:10px; }
   </style>
 </head>
 <body>
 
-<h1>Quiz Battle (No Firebase)</h1>
-
-<div id="menu">
-  <input id="code" placeholder="Enter / Create Code">
-  <input id="name" placeholder="Your Name">
-  <button onclick="startGame()">Join / Create</button>
+<div id="ui">
+  <input id="name" placeholder="Name">
+  <input id="code" placeholder="Room Code (create or join)">
+  <button onclick="startGame()">Start / Join</button>
+  <div id="stats"></div>
+  <div id="questionBox"></div>
 </div>
 
-<div id="game">
-  <h2 id="room"></h2>
-  <h3 id="question"></h3>
-  <div id="answers"></div>
-
-  <h3>Leaderboard</h3>
-  <ul id="board"></ul>
-</div>
+<canvas id="game" width="600" height="400"></canvas>
 
 <script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let room = "";
+let playerName = "";
+
+let players = {}; // all players in room
+
+let player = {
+  x: 100,
+  y: 100,
+  energy: 1500,
+  color: "red",
+  speed: 3
+};
+
+const keys = {};
+
 const questions = [
-  { q: "2 + 2?", a: ["1","2","4","5"], correct: 2 },
-  { q: "Capital of France?", a: ["Berlin","Paris","Rome","Madrid"], correct: 1 },
-  { q: "5 x 3?", a: ["15","10","8","20"], correct: 0 }
+  { q: "2 + 2?", a: 4 },
+  { q: "5 x 3?", a: 15 },
+  { q: "10 - 6?", a: 4 },
+  { q: "6 + 7?", a: 13 }
 ];
 
 let qIndex = 0;
-let name = "";
-let code = "";
-let score = 0;
 
-// 📡 shared channel (this replaces Firebase)
-let channel;
-let players = {};
+// 🔑 fake shared storage (same browser tab system)
+let storage = {};
 
 function startGame() {
-  name = document.getElementById("name").value;
-  code = document.getElementById("code").value;
+  playerName = document.getElementById("name").value;
+  room = document.getElementById("code").value;
 
-  if (!name || !code) return alert("Enter name + code");
+  if (!playerName || !room) return alert("Enter name + code");
 
-  channel = new BroadcastChannel(code);
+  if (!storage[room]) storage[room] = {};
 
-  channel.onmessage = (e) => {
-    if (e.data.type === "update") {
-      players = e.data.players;
-      renderBoard();
-    }
-    if (e.data.type === "question") {
-      qIndex = e.data.qIndex;
-      loadQuestion();
-    }
-  };
+  players = storage[room];
 
-  document.getElementById("menu").style.display = "none";
-  document.getElementById("game").style.display = "block";
-  document.getElementById("room").innerText = "Room: " + code;
+  player.color = randomColor();
+  players[playerName] = player;
 
-  players[name] = 0;
-  sync();
   loadQuestion();
+  loop();
+}
+
+function randomColor() {
+  const colors = ["red","blue","lime","yellow","purple","cyan"];
+  return colors[Math.floor(Math.random()*colors.length)];
+}
+
+// movement
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+function move() {
+  if (keys["ArrowUp"]) player.y -= player.speed;
+  if (keys["ArrowDown"]) player.y += player.speed;
+  if (keys["ArrowLeft"]) player.x -= player.speed;
+  if (keys["ArrowRight"]) player.x += player.speed;
 }
 
 function loadQuestion() {
   const q = questions[qIndex];
-
-  document.getElementById("question").innerText = q.q;
-
-  const div = document.getElementById("answers");
-  div.innerHTML = "";
-
-  q.a.forEach((text, i) => {
-    const btn = document.createElement("button");
-    btn.innerText = text;
-    btn.onclick = () => answer(i);
-    div.appendChild(btn);
-  });
+  document.getElementById("questionBox").innerHTML =
+    q.q + " <button onclick='answer(true)'>Answer Correct</button>";
 }
 
-function answer(i) {
-  const q = questions[qIndex];
-
-  if (i === q.correct) {
-    players[name] += 100;
+window.answer = function(correct) {
+  if (correct) {
+    player.energy += 1000;
   } else {
-    players[name] += 20;
+    player.energy -= 300;
   }
 
   qIndex = (qIndex + 1) % questions.length;
-
+  loadQuestion();
   sync();
-  channel.postMessage({ type: "question", qIndex });
 }
 
 function sync() {
-  channel.postMessage({
-    type: "update",
-    players: players
-  });
-
-  renderBoard();
+  storage[room][playerName] = player;
 }
 
-function renderBoard() {
-  const board = document.getElementById("board");
-  board.innerHTML = "";
+function draw() {
+  ctx.clearRect(0,0,600,400);
 
-  Object.entries(players)
-    .sort((a,b) => b[1] - a[1])
-    .forEach(([n, s]) => {
-      const li = document.createElement("li");
-      li.innerText = n + ": " + s;
-      board.appendChild(li);
-    });
+  for (let p in players) {
+    let pl = players[p];
+
+    ctx.beginPath();
+    ctx.arc(pl.x, pl.y, 15, 0, Math.PI*2);
+    ctx.fillStyle = pl.color;
+    ctx.fill();
+  }
+}
+
+function loop() {
+  move();
+  sync();
+  draw();
+
+  document.getElementById("stats").innerText =
+    "Energy: " + player.energy + " | Room: " + room;
+
+  requestAnimationFrame(loop);
 }
 </script>
 
