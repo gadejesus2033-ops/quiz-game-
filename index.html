@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena FINAL</title>
+<title>Ball Arena FINAL FIXED</title>
 <style>
 body { margin:0; background:#111; text-align:center; overflow:hidden; color:white; }
 canvas { background:#222; display:block; margin:auto; }
@@ -31,31 +31,38 @@ let player={
   vx:0,vy:0,
   radius:15,
   speed:0.5,
-  jump:-12,
+  jumpPower:-13,
   gravity:0.6,
   onGround:false,
   energy:100
 };
 
-const keys={};
+let keys={};
+let jumpPressed=false;
 
 // ===== WORLD =====
-let platforms=[], enemies=[], bullets=[], boss=null;
-let portal={x:1800,y:200,w:40,h:80};
+let platforms=[], enemies=[], boss=null;
+let portal={x:1800,y:300,w:60,h:120};
 
 // ===== INPUT =====
 document.addEventListener("keydown",e=>{
   keys[e.key]=true;
 
-  if(e.key==="f"){
-    bullets.push({x:player.x,y:player.y,vx:6});
+  if(e.key===" " && !jumpPressed){
+    if(player.onGround){
+      player.vy = player.jumpPower;
+      player.onGround=false;
+    }
+    jumpPressed=true;
   }
 });
+
 document.addEventListener("keyup",e=>{
   keys[e.key]=false;
+  if(e.key===" ") jumpPressed=false;
 });
 
-// ===== LEVEL =====
+// ===== LEVEL GENERATION =====
 function generateLevel(){
   platforms=[];
   enemies=[];
@@ -64,17 +71,19 @@ function generateLevel(){
   // ground
   platforms.push({x:0,y:550,w:2000,h:50});
 
-  // random platforms
+  // platforms (STATIC per level)
   for(let i=0;i<8;i++){
     platforms.push({
       x:200+i*200,
-      y:250+Math.random()*250,
+      y:250+Math.random()*200,
       w:120,
       h:20
     });
   }
 
+  // portal ALWAYS at end
   portal.x=1800;
+  portal.y=450;
 
   if(level<5){
     for(let i=0;i<level+2;i++){
@@ -82,7 +91,7 @@ function generateLevel(){
         x:300+i*250,
         y:520,
         dir:1,
-        speed:1.2
+        speed:1.2   // FIXED SPEED
       });
     }
   }else{
@@ -98,17 +107,12 @@ function generateLevel(){
 // ===== PLAYER =====
 function movePlayer(){
 
-  if(keys["ArrowLeft"]) player.vx-=player.speed;
-  if(keys["ArrowRight"]) player.vx+=player.speed;
+  if(keys["ArrowLeft"]) player.vx -= player.speed;
+  if(keys["ArrowRight"]) player.vx += player.speed;
 
-  player.vx*=0.9;
+  player.vx *= 0.9;
 
-  // smooth jump
-  if(keys[" "] && player.onGround){
-    player.vy = player.jump;
-    player.onGround = false;
-  }
-
+  // variable jump height (smooth)
   if(!keys[" "] && player.vy < 0){
     player.vy += 0.4;
   }
@@ -118,7 +122,7 @@ function movePlayer(){
   player.x += player.vx;
   player.y += player.vy;
 
-  // platform collision
+  // collisions
   player.onGround=false;
   platforms.forEach(p=>{
     if(player.x > p.x && player.x < p.x+p.w &&
@@ -126,18 +130,18 @@ function movePlayer(){
        player.y < p.y + p.h){
       player.y = p.y - player.radius;
       player.vy = 0;
-      player.onGround = true;
+      player.onGround=true;
     }
   });
 
-  // HARD FLOOR (no falling off)
+  // HARD FLOOR (no falling)
   if(player.y > 550 - player.radius){
     player.y = 550 - player.radius;
     player.vy = 0;
     player.onGround = true;
   }
 
-  // horizontal bounds
+  // walls
   if(player.x < 0) player.x = 0;
   if(player.x > 2000) player.x = 2000;
 }
@@ -152,7 +156,7 @@ function moveEnemies(){
     }
 
     if(Math.abs(player.x - e.x) < 20 && Math.abs(player.y - e.y) < 20){
-      player.energy -= 0.5;
+      player.energy -= 0.3;
     }
   });
 }
@@ -168,19 +172,6 @@ function moveBoss(){
   boss.x += dx/dist*1.5;
   boss.y += dy/dist*1.5;
 
-  boss.shootCooldown--;
-
-  if(boss.shootCooldown<=0){
-    bullets.push({
-      x:boss.x,
-      y:boss.y,
-      vx:dx/dist*4,
-      vy:dy/dist*4,
-      enemy:true
-    });
-    boss.shootCooldown=50;
-  }
-
   if(Math.abs(player.x-boss.x)<30 && Math.abs(player.y-boss.y)<30 && player.vy>0){
     boss.hp--;
     player.vy=-8;
@@ -189,30 +180,6 @@ function moveBoss(){
   if(boss.hp<=0){
     gameState="win";
   }
-}
-
-// ===== BULLETS =====
-function moveBullets(){
-  bullets.forEach(b=>{
-    b.x+=b.vx;
-    b.y+=b.vy||0;
-
-    if(b.enemy){
-      if(Math.abs(player.x-b.x)<15 && Math.abs(player.y-b.y)<15){
-        player.energy-=5;
-      }
-    }else{
-      enemies.forEach((e,i)=>{
-        if(Math.abs(b.x-e.x)<15 && Math.abs(b.y-e.y)<15){
-          enemies.splice(i,1);
-        }
-      });
-
-      if(boss && Math.abs(b.x-boss.x)<25 && Math.abs(b.y-boss.y)<25){
-        boss.hp--;
-      }
-    }
-  });
 }
 
 // ===== PORTAL =====
@@ -233,7 +200,7 @@ function checkPortal(){
     player.x=100;
     player.y=400;
 
-    generateLevel();
+    generateLevel(); // ONLY CALLED HERE
   }
 }
 
@@ -267,7 +234,7 @@ function draw(){
   ctx.fillStyle="#555";
   platforms.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
 
-  // portal
+  // portal (BIG + VISIBLE)
   ctx.fillStyle="yellow";
   ctx.fillRect(portal.x,portal.y,portal.w,portal.h);
 
@@ -287,10 +254,6 @@ function draw(){
     ctx.fill();
   }
 
-  // bullets
-  ctx.fillStyle="orange";
-  bullets.forEach(b=>ctx.fillRect(b.x,b.y,5,5));
-
   // player
   ctx.fillStyle="cyan";
   ctx.beginPath();
@@ -308,7 +271,6 @@ function loop(){
   movePlayer();
   moveEnemies();
   moveBoss();
-  moveBullets();
   checkPortal();
 
   cameraX += (player.x-400-cameraX)*0.1;
