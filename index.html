@@ -2,11 +2,18 @@
 
 <html>
 <head>
-  <title>Ball vs Dog Levels</title>
+  <title>Ball vs Dogs + Math</title>
   <style>
     body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
     canvas { background:#222; display:block; margin:auto; }
     #ui { padding:10px; }
+    .ans {
+      position:absolute;
+      background:#444;
+      padding:8px;
+      border:1px solid white;
+      cursor:pointer;
+    }
   </style>
 </head>
 <body>
@@ -14,6 +21,7 @@
 <div id="ui">
   <button onclick="startGame()">Start</button>
   <div id="stats"></div>
+  <div id="question"></div>
 </div>
 
 <canvas id="game" width="1000" height="600"></canvas>
@@ -36,11 +44,10 @@ let player = {
 };
 
 const keys = {};
+document.addEventListener("keydown", e=>keys[e.key]=true);
+document.addEventListener("keyup", e=>keys[e.key]=false);
 
-document.addEventListener("keydown", e => keys[e.key]=true);
-document.addEventListener("keyup", e => keys[e.key]=false);
-
-// 🧱 PLATFORM (simple parkour)
+// 🧱 PLATFORMS
 function getPlatforms() {
   return [
     {x:0,y:550,w:1000,h:50},
@@ -50,10 +57,9 @@ function getPlatforms() {
   ];
 }
 
-// 💀 DOG ENEMIES
+// 💀 DOGS
 function getDogs() {
   let speed = 1 + level * 0.4;
-
   return [
     {x:300,y:520,dir:1,speed},
     {x:600,y:520,dir:-1,speed},
@@ -63,32 +69,77 @@ function getDogs() {
 
 let dogs = getDogs();
 
+// 🧠 MATH SYSTEM
+let currentQ;
+
+function makeQuestion() {
+  let a = Math.floor(Math.random()*10)+1;
+  let b = Math.floor(Math.random()*10)+1;
+
+  let correct = a + b;
+  let wrong1 = correct + 3;
+  let wrong2 = correct - 2;
+  let wrong3 = correct + 5;
+
+  let answers = [correct, wrong1, wrong2, wrong3];
+  answers.sort(()=>Math.random()-0.5);
+
+  currentQ = { text:`${a} + ${b} = ?`, correct, answers };
+
+  document.getElementById("question").innerText = currentQ.text;
+
+  document.querySelectorAll(".ans").forEach(e=>e.remove());
+
+  currentQ.answers.forEach(ans=>{
+    let div = document.createElement("div");
+    div.className="ans";
+    div.innerText=ans;
+
+    div.style.left = Math.random()*900 + "px";
+    div.style.top = Math.random()*500 + 80 + "px";
+
+    div.onclick = ()=>check(ans);
+
+    document.body.appendChild(div);
+  });
+}
+
+function check(ans){
+  if(ans === currentQ.correct){
+    player.energy += 1000;
+  } else {
+    player.energy -= 300;
+  }
+  makeQuestion();
+}
+
 // 🎮 START
-function startGame() {
+function startGame(){
+  makeQuestion();
   loop();
 }
 
-// 🎮 MOVEMENT + ENERGY DRAIN
-function move() {
-  if (player.energy <= 0) return;
+// 🎮 MOVE
+function move(){
+  if(player.energy<=0) return;
 
-  let moving = false;
+  let moving=false;
 
-  if (keys["ArrowLeft"]) {
-    player.vx = -player.speed;
-    moving = true;
+  if(keys["ArrowLeft"]){
+    player.vx=-player.speed;
+    moving=true;
   }
-  else if (keys["ArrowRight"]) {
-    player.vx = player.speed;
-    moving = true;
+  else if(keys["ArrowRight"]){
+    player.vx=player.speed;
+    moving=true;
   }
-  else player.vx *= 0.8;
+  else player.vx*=0.8;
 
-  if (moving) player.energy -= 10;
+  if(moving) player.energy -= 10;
 
-  if (keys[" "] && player.onGround) {
-    player.vy = player.jump;
-    player.onGround = false;
+  if(keys[" "] && player.onGround){
+    player.vy=player.jump;
+    player.onGround=false;
   }
 
   player.vy += 0.5;
@@ -96,76 +147,65 @@ function move() {
   player.x += player.vx;
   player.y += player.vy;
 
-  player.onGround = false;
+  player.onGround=false;
 
-  for (let p of getPlatforms()) {
-    if (
-      player.x > p.x &&
-      player.x < p.x + p.w &&
-      player.y + 15 > p.y &&
-      player.y < p.y + p.h
-    ) {
-      player.y = p.y - 15;
-      player.vy = 0;
-      player.onGround = true;
+  for(let p of getPlatforms()){
+    if(player.x>p.x && player.x<p.x+p.w &&
+       player.y+15>p.y && player.y<p.y+p.h){
+      player.y=p.y-15;
+      player.vy=0;
+      player.onGround=true;
     }
   }
 }
 
-// 💀 DOG MOVEMENT + DAMAGE
-function moveDogs() {
-  dogs.forEach(d => {
-    d.x += d.dir * d.speed;
+// 💀 DOGS
+function moveDogs(){
+  dogs.forEach(d=>{
+    d.x += d.dir*d.speed;
+    if(d.x<0 || d.x>950) d.dir*=-1;
 
-    if (d.x < 0 || d.x > 950) d.dir *= -1;
-
-    if (Math.abs(player.x - d.x) < 25 && Math.abs(player.y - d.y) < 25) {
+    if(Math.abs(player.x-d.x)<25 && Math.abs(player.y-d.y)<25){
       player.energy -= 30;
     }
   });
 }
 
-// 🏁 LEVEL SYSTEM
-function checkLevel() {
-  if (player.x > 950) {
+// 🏁 LEVELS
+function checkLevel(){
+  if(player.x>950){
     level++;
 
-    if (level > 5) {
-      alert("YOU BEAT LEVEL 5 — YOU WIN!");
-      level = 1;
+    if(level>5){
+      alert("YOU BEAT ALL 5 LEVELS!");
+      level=1;
     }
 
-    player.x = 100;
-    player.y = 500;
-    player.energy += 400;
+    player.x=100;
+    player.y=500;
+    player.energy+=400;
 
-    dogs = getDogs();
+    dogs=getDogs();
   }
 }
 
 // 🎨 DRAW
-function draw() {
+function draw(){
   ctx.clearRect(0,0,1000,600);
 
-  // platforms
   ctx.fillStyle="#444";
-  getPlatforms().forEach(p => {
-    ctx.fillRect(p.x,p.y,p.w,p.h);
-  });
+  getPlatforms().forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
 
-  // finish line
   ctx.fillStyle="gold";
   ctx.fillRect(950,200,30,200);
 
-  // dogs (enemies)
   ctx.fillStyle="brown";
-  dogs.forEach(d => {
+  dogs.forEach(d=>{
     ctx.beginPath();
     ctx.arc(d.x,d.y,15,0,Math.PI*2);
     ctx.fill();
   });
 
-  // player ball
   ctx.beginPath();
   ctx.arc(player.x,player.y,15,0,Math.PI*2);
   ctx.fillStyle="cyan";
@@ -173,15 +213,14 @@ function draw() {
 }
 
 // 🔁 LOOP
-function loop() {
+function loop(){
   move();
   moveDogs();
   checkLevel();
   draw();
 
-  document.getElementById("stats").innerText =
-    "Level: " + level +
-    " | Energy: " + player.energy;
+  document.getElementById("stats").innerText=
+    "Level: "+level+" | Energy: "+player.energy;
 
   requestAnimationFrame(loop);
 }
