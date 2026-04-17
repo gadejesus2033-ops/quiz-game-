@@ -2,165 +2,125 @@
 
 <html>
 <head>
-  <title>Ball Arena Energy</title>
+  <title>Ball Arena Big View</title>
   <style>
-    body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; }
-    canvas { background:#222; display:block; margin:auto; }
-    #ui { padding:10px; }
-    button { padding:8px; margin:5px; }
+    body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
+
+```
+canvas {
+  background:#222;
+  display:block;
+  margin:auto;
+  width: 1000px;   /* 👈 BIGGER VIEW */
+  height: 600px;   /* 👈 BIGGER VIEW */
+}
+
+.answer {
+  position:absolute;
+  background:#444;
+  color:white;
+  padding:8px;
+  border:1px solid white;
+  cursor:pointer;
+}
+
+#ui { padding:10px; }
+```
+
   </style>
 </head>
 <body>
 
 <div id="ui">
-  <input id="name" placeholder="Name">
-  <input id="code" placeholder="Room Code">
   <button onclick="startGame()">Start</button>
-
   <div id="stats"></div>
-  <div id="questionBox"></div>
 </div>
 
-<canvas id="game" width="600" height="400"></canvas>
+<canvas id="game" width="1000" height="600"></canvas>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 let player = {
-  x: 100,
-  y: 100,
-  vx: 0,
-  vy: 0,
-  energy: 1500,
-  onGround: false
+  x:200,
+  y:200,
+  vx:0,
+  vy:0,
+  energy:1500,
+  speed:3,
+  jump:-8,
+  onGround:false
 };
-
-let gravity = 0.5;
-let jumpPower = -8;
 
 const keys = {};
 
-const questions = [
-  { q: "2 + 2?", a: ["3","4","5","6"], correct: 1 },
-  { q: "5 x 3?", a: ["10","15","20","8"], correct: 1 },
-  { q: "10 - 6?", a: ["2","4","5","6"], correct: 1 },
-  { q: "6 + 7?", a: ["12","13","14","15"], correct: 1 }
-];
-
-let qIndex = 0;
-
-let goal = { x: 520, y: 300, w: 50, h: 50 };
+document.addEventListener("keydown", e => keys[e.key]=true);
+document.addEventListener("keyup", e => keys[e.key]=false);
 
 function startGame() {
   loadQuestion();
   loop();
 }
 
-// controls
-document.addEventListener("keydown", e => keys[e.key] = true);
-document.addEventListener("keyup", e => keys[e.key] = false);
-
+// 🎯 BIGGER WORLD BOUNDS
 function move() {
-
-  if (player.energy <= 0) {
-    return; // no energy = stop moving
-  }
+  if (player.energy <= 0) return;
 
   if (keys["ArrowLeft"]) {
-    player.vx = -3;
-    player.energy -= 20;
+    player.vx = -player.speed;
+    player.energy -= 10;
   }
   else if (keys["ArrowRight"]) {
-    player.vx = 3;
-    player.energy -= 20;
+    player.vx = player.speed;
+    player.energy -= 10;
   }
-  else {
-    player.vx *= 0.8;
-  }
+  else player.vx *= 0.8;
 
-  // jump
   if (keys[" "] && player.onGround) {
-    player.vy = jumpPower;
+    player.vy = player.jump;
     player.onGround = false;
   }
 
-  player.vy += gravity;
+  player.vy += 0.5;
 
   player.x += player.vx;
   player.y += player.vy;
 
-  // floor
-  if (player.y >= 350) {
-    player.y = 350;
+  // 👇 bigger floor (because view is bigger)
+  if (player.y >= 550) {
+    player.y = 550;
     player.vy = 0;
     player.onGround = true;
   }
 
   if (player.x < 0) player.x = 0;
-  if (player.x > 580) player.x = 580;
+  if (player.x > 980) player.x = 980;
 }
 
-function loadQuestion() {
-  const q = questions[qIndex];
-
-  let html = `<b>${q.q}</b><br>`;
-
-  q.a.forEach((ans, i) => {
-    html += `<button onclick="answer(${i})">${ans}</button>`;
-  });
-
-  document.getElementById("questionBox").innerHTML = html;
-}
-
-window.answer = function(i) {
-  const q = questions[qIndex];
-
-  if (i === q.correct) {
-    player.energy += 1000;
-  } else {
-    player.energy -= 300;
-  }
-
-  qIndex = (qIndex + 1) % questions.length;
-  loadQuestion();
-};
-
-function checkGoal() {
-  if (
-    player.x > goal.x &&
-    player.x < goal.x + goal.w &&
-    player.y > goal.y &&
-    player.y < goal.y + goal.h
-  ) {
-    alert("LEVEL COMPLETE! Restarting...");
-    player.x = 100;
-    player.y = 100;
-    player.energy = 1500;
-  }
-}
-
+// 🎨 DRAW BIGGER WORLD
 function draw() {
-  ctx.clearRect(0,0,600,400);
+  ctx.clearRect(0,0,1000,600);
 
-  // ground
-  ctx.fillStyle = "#444";
-  ctx.fillRect(0, 370, 600, 30);
-
-  // goal
-  ctx.fillStyle = "gold";
-  ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
+  // floor
+  ctx.fillStyle="#444";
+  ctx.fillRect(0,570,1000,30);
 
   // player
   ctx.beginPath();
-  ctx.arc(player.x, player.y, 15, 0, Math.PI*2);
-  ctx.fillStyle = "cyan";
+  ctx.arc(player.x,player.y,15,0,Math.PI*2);
+  ctx.fillStyle="cyan";
   ctx.fill();
+}
+
+// simple question system
+function loadQuestion() {
+  document.getElementById("stats").innerText =
+    "Energy: " + player.energy;
 }
 
 function loop() {
   move();
-  checkGoal();
   draw();
 
   document.getElementById("stats").innerText =
