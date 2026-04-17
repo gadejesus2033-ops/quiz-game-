@@ -1,49 +1,191 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>Ball vs Dog Levels</title>
+  <style>
+    body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
+    canvas { background:#222; display:block; margin:auto; }
+    #ui { padding:10px; }
+  </style>
+</head>
+<body>
+
+<div id="ui">
+  <button onclick="startGame()">Start</button>
+  <div id="stats"></div>
+</div>
+
+<canvas id="game" width="1000" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let level = 1;
+
+let player = {
+  x:100,
+  y:500,
+  vx:0,
+  vy:0,
+  energy:1500,
+  speed:3,
+  jump:-9,
+  onGround:false
+};
+
+const keys = {};
+
+document.addEventListener("keydown", e => keys[e.key]=true);
+document.addEventListener("keyup", e => keys[e.key]=false);
+
+// 🧱 PLATFORM (simple parkour)
+function getPlatforms() {
+  return [
+    {x:0,y:550,w:1000,h:50},
+    {x:200,y:450,w:150,h:20},
+    {x:400,y:380,w:150,h:20},
+    {x:650,y:320,w:150,h:20}
+  ];
+}
+
+// 💀 DOG ENEMIES
+function getDogs() {
+  let speed = 1 + level * 0.4;
+
+  return [
+    {x:300,y:520,dir:1,speed},
+    {x:600,y:520,dir:-1,speed},
+    {x:800,y:520,dir:1,speed}
+  ];
+}
+
+let dogs = getDogs();
+
+// 🎮 START
+function startGame() {
+  loop();
+}
+
+// 🎮 MOVEMENT + ENERGY DRAIN
 function move() {
-if (player.energy <= 0) return;
+  if (player.energy <= 0) return;
 
-let moving = false;
+  let moving = false;
 
-if (keys["ArrowLeft"]) {
-player.vx = -player.speed;
-moving = true;
+  if (keys["ArrowLeft"]) {
+    player.vx = -player.speed;
+    moving = true;
+  }
+  else if (keys["ArrowRight"]) {
+    player.vx = player.speed;
+    moving = true;
+  }
+  else player.vx *= 0.8;
+
+  if (moving) player.energy -= 10;
+
+  if (keys[" "] && player.onGround) {
+    player.vy = player.jump;
+    player.onGround = false;
+  }
+
+  player.vy += 0.5;
+
+  player.x += player.vx;
+  player.y += player.vy;
+
+  player.onGround = false;
+
+  for (let p of getPlatforms()) {
+    if (
+      player.x > p.x &&
+      player.x < p.x + p.w &&
+      player.y + 15 > p.y &&
+      player.y < p.y + p.h
+    ) {
+      player.y = p.y - 15;
+      player.vy = 0;
+      player.onGround = true;
+    }
+  }
 }
-else if (keys["ArrowRight"]) {
-player.vx = player.speed;
-moving = true;
-}
-else {
-player.vx *= 0.8;
-}
 
-// ⚡ ENERGY DRAIN FIX (only when actually moving)
-if (moving) {
-player.energy -= 10;
-}
+// 💀 DOG MOVEMENT + DAMAGE
+function moveDogs() {
+  dogs.forEach(d => {
+    d.x += d.dir * d.speed;
 
-if (keys[" "] && player.onGround) {
-player.vy = player.jump;
-player.onGround = false;
+    if (d.x < 0 || d.x > 950) d.dir *= -1;
+
+    if (Math.abs(player.x - d.x) < 25 && Math.abs(player.y - d.y) < 25) {
+      player.energy -= 30;
+    }
+  });
 }
 
-player.vy += 0.5;
+// 🏁 LEVEL SYSTEM
+function checkLevel() {
+  if (player.x > 950) {
+    level++;
 
-player.x += player.vx;
-player.y += player.vy;
+    if (level > 5) {
+      alert("YOU BEAT LEVEL 5 — YOU WIN!");
+      level = 1;
+    }
 
-player.onGround = false;
+    player.x = 100;
+    player.y = 500;
+    player.energy += 400;
 
-let plats = getPlatforms();
-
-for (let p of plats) {
-if (
-player.x > p.x &&
-player.x < p.x + p.w &&
-player.y + 15 > p.y &&
-player.y < p.y + p.h
-) {
-player.y = p.y - 15;
-player.vy = 0;
-player.onGround = true;
+    dogs = getDogs();
+  }
 }
+
+// 🎨 DRAW
+function draw() {
+  ctx.clearRect(0,0,1000,600);
+
+  // platforms
+  ctx.fillStyle="#444";
+  getPlatforms().forEach(p => {
+    ctx.fillRect(p.x,p.y,p.w,p.h);
+  });
+
+  // finish line
+  ctx.fillStyle="gold";
+  ctx.fillRect(950,200,30,200);
+
+  // dogs (enemies)
+  ctx.fillStyle="brown";
+  dogs.forEach(d => {
+    ctx.beginPath();
+    ctx.arc(d.x,d.y,15,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // player ball
+  ctx.beginPath();
+  ctx.arc(player.x,player.y,15,0,Math.PI*2);
+  ctx.fillStyle="cyan";
+  ctx.fill();
 }
+
+// 🔁 LOOP
+function loop() {
+  move();
+  moveDogs();
+  checkLevel();
+  draw();
+
+  document.getElementById("stats").innerText =
+    "Level: " + level +
+    " | Energy: " + player.energy;
+
+  requestAnimationFrame(loop);
 }
+</script>
+
+</body>
+</html>
