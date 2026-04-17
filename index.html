@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena - Real Game</title>
+<title>Ball Arena - Final Game</title>
 <style>
 body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
 canvas { background:#222; display:block; margin:auto; }
@@ -25,90 +25,75 @@ button { margin:5px; padding:8px; }
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// ===== GAME STATE =====
-let gameState = "menu";
-let level = 1;
-let running = false;
-let cameraX = 0;
-let worldWidth = 2000;
-let shake = 0;
-let flash = 0;
-let score = 0;
+// ===== STATE =====
+let gameState="menu";
+let level=1;
+let score=0;
+let cameraX=0;
+let shake=0;
+let flash=0;
 
 // ===== PLAYER =====
-let player = {
-  x:100, y:500,
-  vx:0, vy:0,
+let player={
+  x:100,y:500,vx:0,vy:0,
   energy:10000,
-  jump:-14,
-  gravity:0.6,
-  jumps:0,
-  maxJumps:2
+  jump:-14,gravity:0.6,
+  jumps:0,maxJumps:2
 };
 
-let checkpoint = {x:100,y:500};
+let checkpoint={x:100,y:500};
 
 // ===== INPUT =====
-const keys = {};
+const keys={};
 let jumpPressed=false;
 let shootCooldown=0;
 
-document.addEventListener("keydown", e=>{
+document.addEventListener("keydown",e=>{
   keys[e.key]=true;
 
-  if(e.key===" " && !jumpPressed){
-    if(player.jumps < player.maxJumps){
-      player.vy = player.jump;
+  if(e.key===" "&&!jumpPressed){
+    if(player.jumps<player.maxJumps){
+      player.vy=player.jump;
       player.jumps++;
     }
     jumpPressed=true;
   }
 
-  if(e.key==="f" && shootCooldown<=0){
+  if(e.key==="f"&&shootCooldown<=0){
     bullets.push({x:player.x,y:player.y,vx:7});
     shootCooldown=15;
   }
 });
 
-document.addEventListener("keyup", e=>{
+document.addEventListener("keyup",e=>{
   keys[e.key]=false;
   if(e.key===" ") jumpPressed=false;
 });
 
 // ===== OBJECTS =====
-let dogs=[], bullets=[], bossBullets=[], coins=[];
-let movingPlatform={x:600,y:350,w:120,h:20,dir:1};
+let dogs=[],bullets=[],bossBullets=[],coins=[];
 let portal={x:1800,y:200,w:30,h:200};
 
 // ===== LEVEL =====
 function setupLevel(){
-  dogs=getDogs();
-  spawnCoins();
+  dogs=[];
+  for(let i=0;i<level+2;i++){
+    dogs.push({x:300+i*300,y:520,dir:1,speed:1});
+  }
 
   if(level===5){
-    dogs=[{x:1500,y:300,hp:60,speed:1.5,boss:true,shootCooldown:0}];
+    dogs=[{x:1500,y:300,hp:60,speed:2,boss:true,shootCooldown:0}];
   }
-}
 
-// ===== ENEMIES =====
-function getDogs(){
-  let arr=[];
-  for(let i=0;i<level+3;i++){
-    arr.push({x:300+i*300,y:520,dir:1,speed:1});
-  }
-  return arr;
-}
-
-// ===== COINS =====
-function spawnCoins(){
   coins=[];
   for(let i=0;i<15;i++){
-    coins.push({x:Math.random()*worldWidth,y:Math.random()*400+100});
+    coins.push({x:Math.random()*2000,y:Math.random()*400+100});
   }
 }
 
 // ===== MATH =====
-let currentQ;
+let currentQ,combo=0;
+
 function makeQuestion(){
   let a=Math.floor(Math.random()*10)+1;
   let b=Math.floor(Math.random()*10)+1;
@@ -127,11 +112,10 @@ function makeQuestion(){
   document.getElementById("question").innerHTML=html;
 }
 
-let combo=0;
 function check(ans){
   if(ans===currentQ.correct){
     combo++;
-    player.energy+=500+combo*100;
+    player.energy+=400+combo*100;
     score+=50;
   }else{
     combo=0;
@@ -142,7 +126,7 @@ function check(ans){
   makeQuestion();
 }
 
-// ===== MOVEMENT =====
+// ===== MOVE =====
 function move(){
   if(gameState!=="playing") return;
 
@@ -170,29 +154,22 @@ function move(){
   player.energy-=0.2;
 }
 
-// ===== CAMERA =====
-function updateCamera(){
-  cameraX += (player.x-400-cameraX)*0.1;
-}
-
 // ===== ENEMIES =====
 function moveDogs(){
   dogs.forEach(d=>{
     if(d.boss){
-
       let dx=player.x-d.x;
       let dy=player.y-d.y;
       let dist=Math.sqrt(dx*dx+dy*dy);
 
-      d.x += (dx/dist)*d.speed;
-      d.y += (dy/dist)*d.speed;
+      d.x+=(dx/dist)*d.speed;
+      d.y+=(dy/dist)*d.speed;
 
-      d.y += Math.sin(Date.now()*0.005);
+      d.y+=Math.sin(Date.now()*0.005);
 
       if(d.hp<15) d.speed=3;
 
       d.shootCooldown--;
-
       if(d.shootCooldown<=0){
         bossBullets.push({x:d.x,y:d.y,vx:dx>0?6:-6,vy:dy*0.05});
         d.shootCooldown=40;
@@ -200,6 +177,7 @@ function moveDogs(){
 
     }else{
       d.x+=d.dir*d.speed;
+      if(d.x<0||d.x>2000) d.dir*=-1;
     }
   });
 }
@@ -228,19 +206,13 @@ function draw(){
     return;
   }
 
-  if(gameState==="win"){
-    ctx.fillStyle="gold";
-    ctx.font="40px Arial";
-    ctx.fillText("YOU WIN!",350,250);
-    return;
-  }
-
   ctx.save();
   ctx.translate(-cameraX,0);
 
   ctx.fillStyle="#444";
   ctx.fillRect(0,550,2000,50);
 
+  // coins
   coins.forEach(c=>{
     ctx.beginPath();
     ctx.arc(c.x,c.y,8,0,Math.PI*2);
@@ -248,40 +220,34 @@ function draw(){
     ctx.fill();
   });
 
+  // enemies
   dogs.forEach(d=>{
-    ctx.beginPath();
-    ctx.arc(d.x,d.y,d.boss?25:15,0,Math.PI*2);
     ctx.fillStyle=d.boss?"purple":"brown";
-    ctx.fill();
+    ctx.fillRect(d.x-15,d.y-15,30,30);
   });
 
+  // bullets
   bullets.forEach(b=>{
     ctx.fillStyle="red";
     ctx.fillRect(b.x,b.y,5,5);
   });
 
-  ctx.beginPath();
-  ctx.arc(player.x,player.y,15,0,Math.PI*2);
+  // ⭐ PLAYER CHARACTER (REAL SHAPE)
   ctx.fillStyle="cyan";
-  ctx.fill();
+  ctx.fillRect(player.x-15,player.y-20,30,40); // body
+  ctx.fillStyle="white";
+  ctx.fillRect(player.x-10,player.y-25,8,8); // eye
+  ctx.fillRect(player.x+2,player.y-25,8,8); // eye
 
   ctx.restore();
 
-  // HEALTH BAR
+  // health bar
   ctx.fillStyle="black";
   ctx.fillRect(20,20,200,20);
   ctx.fillStyle="lime";
   ctx.fillRect(20,20,player.energy/50,20);
 
-  // BOSS BAR
-  dogs.forEach(d=>{
-    if(d.boss){
-      ctx.fillStyle="purple";
-      ctx.fillRect(300,20,d.hp*5,20);
-    }
-  });
-
-  // FLASH
+  // effects
   if(flash>0){
     ctx.fillStyle="rgba(255,0,0,0.3)";
     ctx.fillRect(0,0,1000,600);
@@ -294,7 +260,8 @@ function loop(){
   move();
   moveDogs();
   moveBullets();
-  updateCamera();
+
+  cameraX += (player.x-400-cameraX)*0.1;
 
   if(shootCooldown>0) shootCooldown--;
 
