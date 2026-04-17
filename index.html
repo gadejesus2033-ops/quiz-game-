@@ -2,20 +2,21 @@
 
 <html>
 <head>
-  <title>Ball Arena Codes</title>
+  <title>Ball Arena Energy</title>
   <style>
     body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; }
     canvas { background:#222; display:block; margin:auto; }
-    input, button { padding:8px; margin:5px; }
     #ui { padding:10px; }
+    button { padding:8px; margin:5px; }
   </style>
 </head>
 <body>
 
 <div id="ui">
   <input id="name" placeholder="Name">
-  <input id="code" placeholder="Room Code (create or join)">
-  <button onclick="startGame()">Start / Join</button>
+  <input id="code" placeholder="Room Code">
+  <button onclick="startGame()">Start</button>
+
   <div id="stats"></div>
   <div id="questionBox"></div>
 </div>
@@ -26,74 +27,96 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let room = "";
-let playerName = "";
-
-let players = {}; // all players in room
-
 let player = {
   x: 100,
   y: 100,
+  vx: 0,
+  vy: 0,
   energy: 1500,
-  color: "red",
-  speed: 3
+  onGround: false
 };
+
+let gravity = 0.5;
+let jumpPower = -8;
 
 const keys = {};
 
 const questions = [
-  { q: "2 + 2?", a: 4 },
-  { q: "5 x 3?", a: 15 },
-  { q: "10 - 6?", a: 4 },
-  { q: "6 + 7?", a: 13 }
+  { q: "2 + 2?", a: ["3","4","5","6"], correct: 1 },
+  { q: "5 x 3?", a: ["10","15","20","8"], correct: 1 },
+  { q: "10 - 6?", a: ["2","4","5","6"], correct: 1 },
+  { q: "6 + 7?", a: ["12","13","14","15"], correct: 1 }
 ];
 
 let qIndex = 0;
 
-// 🔑 fake shared storage (same browser tab system)
-let storage = {};
+let goal = { x: 520, y: 300, w: 50, h: 50 };
 
 function startGame() {
-  playerName = document.getElementById("name").value;
-  room = document.getElementById("code").value;
-
-  if (!playerName || !room) return alert("Enter name + code");
-
-  if (!storage[room]) storage[room] = {};
-
-  players = storage[room];
-
-  player.color = randomColor();
-  players[playerName] = player;
-
   loadQuestion();
   loop();
 }
 
-function randomColor() {
-  const colors = ["red","blue","lime","yellow","purple","cyan"];
-  return colors[Math.floor(Math.random()*colors.length)];
-}
-
-// movement
+// controls
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
 
 function move() {
-  if (keys["ArrowUp"]) player.y -= player.speed;
-  if (keys["ArrowDown"]) player.y += player.speed;
-  if (keys["ArrowLeft"]) player.x -= player.speed;
-  if (keys["ArrowRight"]) player.x += player.speed;
+
+  if (player.energy <= 0) {
+    return; // no energy = stop moving
+  }
+
+  if (keys["ArrowLeft"]) {
+    player.vx = -3;
+    player.energy -= 20;
+  }
+  else if (keys["ArrowRight"]) {
+    player.vx = 3;
+    player.energy -= 20;
+  }
+  else {
+    player.vx *= 0.8;
+  }
+
+  // jump
+  if (keys[" "] && player.onGround) {
+    player.vy = jumpPower;
+    player.onGround = false;
+  }
+
+  player.vy += gravity;
+
+  player.x += player.vx;
+  player.y += player.vy;
+
+  // floor
+  if (player.y >= 350) {
+    player.y = 350;
+    player.vy = 0;
+    player.onGround = true;
+  }
+
+  if (player.x < 0) player.x = 0;
+  if (player.x > 580) player.x = 580;
 }
 
 function loadQuestion() {
   const q = questions[qIndex];
-  document.getElementById("questionBox").innerHTML =
-    q.q + " <button onclick='answer(true)'>Answer Correct</button>";
+
+  let html = `<b>${q.q}</b><br>`;
+
+  q.a.forEach((ans, i) => {
+    html += `<button onclick="answer(${i})">${ans}</button>`;
+  });
+
+  document.getElementById("questionBox").innerHTML = html;
 }
 
-window.answer = function(correct) {
-  if (correct) {
+window.answer = function(i) {
+  const q = questions[qIndex];
+
+  if (i === q.correct) {
     player.energy += 1000;
   } else {
     player.energy -= 300;
@@ -101,33 +124,47 @@ window.answer = function(correct) {
 
   qIndex = (qIndex + 1) % questions.length;
   loadQuestion();
-  sync();
-}
+};
 
-function sync() {
-  storage[room][playerName] = player;
+function checkGoal() {
+  if (
+    player.x > goal.x &&
+    player.x < goal.x + goal.w &&
+    player.y > goal.y &&
+    player.y < goal.y + goal.h
+  ) {
+    alert("LEVEL COMPLETE! Restarting...");
+    player.x = 100;
+    player.y = 100;
+    player.energy = 1500;
+  }
 }
 
 function draw() {
   ctx.clearRect(0,0,600,400);
 
-  for (let p in players) {
-    let pl = players[p];
+  // ground
+  ctx.fillStyle = "#444";
+  ctx.fillRect(0, 370, 600, 30);
 
-    ctx.beginPath();
-    ctx.arc(pl.x, pl.y, 15, 0, Math.PI*2);
-    ctx.fillStyle = pl.color;
-    ctx.fill();
-  }
+  // goal
+  ctx.fillStyle = "gold";
+  ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
+
+  // player
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, 15, 0, Math.PI*2);
+  ctx.fillStyle = "cyan";
+  ctx.fill();
 }
 
 function loop() {
   move();
-  sync();
+  checkGoal();
   draw();
 
   document.getElementById("stats").innerText =
-    "Energy: " + player.energy + " | Room: " + room;
+    "Energy: " + player.energy;
 
   requestAnimationFrame(loop);
 }
