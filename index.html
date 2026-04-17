@@ -1,8 +1,8 @@
-```html
+```html id="finaljumpfix"
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena</title>
+<title>Ball Arena FINAL FIXED</title>
 <style>
 body { margin:0; background:#111; color:white; text-align:center; overflow:hidden; }
 canvas { background:#222; display:block; margin:auto; }
@@ -20,7 +20,7 @@ button { padding:10px; margin:5px; }
 <script>
 
 // =====================
-// GLOBAL SETTINGS
+// GLOBAL
 // =====================
 const SLOW = 0.1;
 
@@ -32,15 +32,15 @@ let gameState = "menu";
 let cameraX = 0;
 
 // =====================
-// PLAYER
+// PLAYER (FIXED JUMP)
 // =====================
 let player = {
   x:100,y:400,
   vx:0,vy:0,
   r:15,
   speed:0.6 * SLOW,
-  jump:-13 * SLOW,
-  gravity:0.6 * SLOW,
+  jump:-4.5,        // FIXED
+  gravity:0.25,     // FIXED
   onGround:false,
   energy:100
 };
@@ -135,13 +135,15 @@ function generateLevel(){
 // PLAYER MOVE
 // =====================
 function movePlayer(){
+
   if(keys["ArrowLeft"]) player.vx -= player.speed;
   if(keys["ArrowRight"]) player.vx += player.speed;
 
   player.vx *= 0.9;
 
+  // BETTER JUMP CONTROL
   if(!keys[" "] && player.vy < 0){
-    player.vy += 0.4 * SLOW;
+    player.vy += 0.2;
   }
 
   player.vy += player.gravity;
@@ -207,7 +209,7 @@ function moveBoss(){
      Math.abs(player.y-boss.y)<30 &&
      player.vy>0){
     boss.hp--;
-    player.vy = -8 * SLOW;
+    player.vy = -4;
   }
 
   if(boss.hp<=0){
