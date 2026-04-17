@@ -4,21 +4,10 @@
 <head>
   <title>Ball Arena FINAL</title>
   <style>
-    body { margin:0; background:#111; color:white; font-family:Arial; overflow:hidden; }
+    body { margin:0; background:#111; color:white; font-family:Arial; overflow:hidden; text-align:center; }
     canvas { background:#222; display:block; margin:auto; }
     #ui { padding:10px; }
-
-```
-.ans {
-  position:absolute;
-  background:#444;
-  padding:10px;
-  border:1px solid white;
-  cursor:pointer;
-  user-select:none;
-}
-```
-
+    button { margin:5px; padding:8px; }
   </style>
 </head>
 <body>
@@ -62,7 +51,7 @@ function getPlatforms() {
   ];
 }
 
-// 💀 DOG ENEMIES (SLOW + FAIR)
+// 💀 DOGS
 function getDogs() {
   let speed = 0.6 + level * 0.15;
 
@@ -75,7 +64,7 @@ function getDogs() {
 
 let dogs = getDogs();
 
-// 🧠 MATH SYSTEM
+// 🧠 QUESTIONS
 let currentQ;
 
 function makeQuestion() {
@@ -83,33 +72,20 @@ function makeQuestion() {
   let b = Math.floor(Math.random()*10)+1;
 
   let correct = a + b;
-  let wrong = [
-    correct + 3,
-    correct - 2,
-    correct + 5
-  ];
+  let wrong = [correct+3, correct-2, correct+5];
 
   let answers = [correct, ...wrong];
   answers.sort(()=>Math.random()-0.5);
 
   currentQ = { text:`${a} + ${b} = ?`, correct, answers };
 
-  document.getElementById("question").innerText = currentQ.text;
+  let html = "<b>" + currentQ.text + "</b><br>";
 
-  document.querySelectorAll(".ans").forEach(e=>e.remove());
-
-  currentQ.answers.forEach(ans=>{
-    let div = document.createElement("div");
-    div.className="ans";
-    div.innerText=ans;
-
-    div.style.left = Math.random()*900 + "px";
-    div.style.top = Math.random()*500 + 80 + "px";
-
-    div.onclick = ()=>check(ans);
-
-    document.body.appendChild(div);
+  answers.forEach(ans=>{
+    html += `<button onclick="check(${ans})">${ans}</button>`;
   });
+
+  document.getElementById("question").innerHTML = html;
 }
 
 function check(ans){
@@ -118,7 +94,6 @@ function check(ans){
   } else {
     player.energy -= 300;
   }
-
   makeQuestion();
 }
 
@@ -128,7 +103,7 @@ function startGame(){
   loop();
 }
 
-// 🎮 MOVEMENT + ENERGY (FIXED)
+// 🎮 MOVE
 function move(){
   if(player.energy<=0) return;
 
@@ -144,14 +119,14 @@ function move(){
   }
   else player.vx*=0.8;
 
-  if(moving) player.energy -= 10; // ⚡ movement cost
+  if(moving) player.energy -= 10;
 
   if(keys[" "] && player.onGround){
     player.vy=player.jump;
     player.onGround=false;
   }
 
-  player.vy += 0.35; // 🪂 smooth gravity
+  player.vy += 0.35;
 
   player.x += player.vx;
   player.y += player.vy;
@@ -168,15 +143,27 @@ function move(){
   }
 }
 
-// 💀 DOGS (NO SPEED BOOST, FIXED DAMAGE)
+// 💀 ENEMIES + COMBAT
 function moveDogs(){
-  dogs.forEach(d=>{
+  dogs.forEach((d,index)=>{
     d.x += d.dir*d.speed;
 
     if(d.x<0 || d.x>950) d.dir*=-1;
 
-    if(Math.abs(player.x-d.x)<25 && Math.abs(player.y-d.y)<25){
-      player.energy -= 10; // fixed damage only
+    let dx = Math.abs(player.x - d.x);
+    let dy = player.y - d.y;
+
+    // ⚔️ STOMP
+    if(dx < 25 && dy > -25 && dy < 0 && player.vy > 0){
+      dogs.splice(index,1);
+      player.vy = -6;
+      player.energy += 100;
+      return;
+    }
+
+    // 💀 DAMAGE
+    if(dx < 25 && Math.abs(player.y - d.y) < 25){
+      player.energy -= 10;
     }
   });
 }
@@ -187,7 +174,7 @@ function checkLevel(){
     level++;
 
     if(level>5){
-      alert("YOU BEAT ALL 5 LEVELS!");
+      alert("YOU BEAT ALL LEVELS!");
       level=1;
     }
 
@@ -229,7 +216,7 @@ function loop(){
   checkLevel();
   draw();
 
-  document.getElementById("stats").innerText=
+  document.getElementById("stats").innerText =
     "Level: "+level+" | Energy: "+player.energy;
 
   requestAnimationFrame(loop);
