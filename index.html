@@ -2,9 +2,9 @@
 
 <html>
 <head>
-  <title>Ball Arena FINAL</title>
+  <title>Ball Arena ULTIMATE</title>
   <style>
-    body { margin:0; background:#111; color:white; font-family:Arial; overflow:hidden; text-align:center; }
+    body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
     canvas { background:#222; display:block; margin:auto; }
     #ui { padding:10px; }
     button { margin:5px; padding:8px; }
@@ -31,7 +31,7 @@ let player = {
   y:500,
   vx:0,
   vy:0,
-  energy:1500,
+  energy:10000, // ⚡ START ENERGY
   speed:3,
   jump:-9,
   onGround:false
@@ -103,7 +103,7 @@ function startGame(){
   loop();
 }
 
-// 🎮 MOVE
+// 🎮 MOVEMENT
 function move(){
   if(player.energy<=0) return;
 
@@ -126,7 +126,12 @@ function move(){
     player.onGround=false;
   }
 
-  player.vy += 0.35;
+  // 🪂 FLOATY JUMP (slow fall)
+  if (player.vy > 0) {
+    player.vy += 0.15;
+  } else {
+    player.vy += 0.35;
+  }
 
   player.x += player.vx;
   player.y += player.vy;
@@ -168,7 +173,7 @@ function moveDogs(){
   });
 }
 
-// 🏁 LEVEL SYSTEM
+// 🏁 LEVELS
 function checkLevel(){
   if(player.x>950){
     level++;
