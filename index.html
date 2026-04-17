@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena ULTIMATE FINAL</title>
+<title>Ball Arena ULTIMATE FINAL+</title>
 <style>
 body { margin:0; background:#111; color:white; font-family:Arial; text-align:center; overflow:hidden; }
 canvas { background:#222; display:block; margin:auto; }
@@ -27,6 +27,7 @@ const ctx = canvas.getContext("2d");
 let level = 1;
 let running = false;
 let cameraX = 0;
+let worldWidth = 2000;
 
 // ===== PLAYER =====
 let player = {
@@ -36,20 +37,22 @@ let player = {
   speed:3,
   jump:-10,
   gravity:0.5,
-  onGround:false
+  onGround:false,
+
+  // ✅ DOUBLE JUMP
+  jumps:0,
+  maxJumps:2
 };
 
 const keys = {};
 document.addEventListener("keydown", e=>{
   keys[e.key]=true;
+
   if(e.key==="f"){
     bullets.push({x:player.x,y:player.y,vx:7});
   }
 });
 document.addEventListener("keyup", e=>keys[e.key]=false);
-
-// ===== WORLD WIDTH =====
-let worldWidth = 2000;
 
 // ===== OBJECTS =====
 let dogs = [];
@@ -63,9 +66,10 @@ function setupLevel(){
   dogs = getDogs();
   spawnCoins();
 
-  hazards = [];
-  hazards.push({x:800,y:540,w:150,h:10});
-  hazards.push({x:1400,y:540,w:150,h:10});
+  hazards = [
+    {x:800,y:540,w:150,h:10},
+    {x:1400,y:540,w:150,h:10}
+  ];
 
   if(level === 5){
     dogs = [{x:1500,y:400,hp:40,dir:1,speed:2,boss:true}];
@@ -76,7 +80,6 @@ function setupLevel(){
 function getPlatforms(){
   return [
     {x:0,y:550,w:2000,h:50},
-
     {x:300,y:450,w:150,h:20},
     {x:600,y:380,w:150,h:20},
     movingPlatform,
@@ -90,7 +93,7 @@ function getDogs(){
   let enemies=[];
   for(let i=0;i<level+3;i++){
     let t=Math.floor(Math.random()*3);
-    let x = 300 + i*300;
+    let x=300+i*300;
 
     if(t===0) enemies.push({x,y:520,dir:1,speed:0.6,type:"tank"});
     if(t===1) enemies.push({x,y:520,dir:1,speed:2.5,type:"fast"});
@@ -149,9 +152,10 @@ function move(){
 
   player.vx*=0.9;
 
-  if(keys[" "] && player.onGround){
-    player.vy=player.jump;
-    player.onGround=false;
+  // ✅ DOUBLE JUMP LOGIC
+  if(keys[" "] && player.jumps < player.maxJumps){
+    player.vy = player.jump * (player.jumps === 0 ? 1 : 0.8);
+    player.jumps++;
   }
 
   player.vy+=player.gravity;
@@ -167,6 +171,9 @@ function move(){
       player.y=p.y-15;
       player.vy=0;
       player.onGround=true;
+
+      // ✅ RESET JUMPS
+      player.jumps = 0;
     }
   });
 
@@ -238,11 +245,8 @@ function moveBullets(){
     for(let j=dogs.length-1;j>=0;j--){
       let d=dogs[j];
       if(Math.abs(b.x-d.x)<15 && Math.abs(b.y-d.y)<15){
-        if(d.boss){
-          d.hp--;
-        } else {
-          dogs.splice(j,1);
-        }
+        if(d.boss){ d.hp--; }
+        else { dogs.splice(j,1); }
         bullets.splice(i,1);
         break;
       }
