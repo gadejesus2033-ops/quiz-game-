@@ -1,12 +1,12 @@
-```html id="truefinal"
+```html
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena COMPLETE</title>
+<title>Ball Arena FINAL</title>
 <style>
 body { margin:0; background:#111; color:white; text-align:center; overflow:hidden; }
 canvas { background:#222; display:block; margin:auto; }
-button { padding:10px; margin:5px; }
+button { padding:10px; margin:10px; }
 </style>
 </head>
 <body>
@@ -27,11 +27,11 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 let level = 1;
-let cameraX = 0;
 let gameState = "menu";
+let cameraX = 0;
 
 // =====================
-// PLAYER (FINAL)
+// PLAYER (SMOOTH FINAL)
 // =====================
 let player = {
   x:100,y:400,
@@ -39,8 +39,8 @@ let player = {
   r:15,
   speed:0.6 * SLOW,
 
-  jump:-7,        // higher jump
-  gravity:0.35,   // smooth fall
+  jump:-6.5,
+  gravity:0.35,
 
   onGround:false,
   energy:100
@@ -66,7 +66,7 @@ document.addEventListener("keydown", e=>{
   keys[e.key]=true;
 
   if(e.key===" "){
-    jumpBuffer = 10;
+    jumpBuffer = 8;
   }
 });
 
@@ -112,10 +112,10 @@ function generateLevel(){
     platforms.push({x:1200,y:400,w:200,h:20});
   }
 
-  portal.x=1800;
-  portal.y=430;
+  portal.x = 1800;
+  portal.y = 430;
 
-  if(level<5){
+  if(level < 5){
     for(let i=0;i<level+2;i++){
       enemies.push({
         x:400+i*200,
@@ -130,7 +130,7 @@ function generateLevel(){
 }
 
 // =====================
-// PLAYER MOVE
+// PLAYER MOVE (SMOOTH)
 // =====================
 function movePlayer(){
 
@@ -149,13 +149,13 @@ function movePlayer(){
 
   player.onGround = false;
 
-  // collision
+  // platform collision
   platforms.forEach(p=>{
     if(player.vy >= 0 &&
        player.x > p.x &&
        player.x < p.x+p.w &&
        player.y + player.r > p.y &&
-       player.y + player.r < p.y + 20){
+       player.y + player.r < p.y + 25){
 
       player.y = p.y - player.r;
       player.vy = 0;
@@ -163,14 +163,21 @@ function movePlayer(){
     }
   });
 
+  // floor
+  if(player.y > 550-player.r){
+    player.y = 550-player.r;
+    player.vy = 0;
+    player.onGround = true;
+  }
+
   // coyote time
   if(player.onGround){
-    coyoteTime = 10;
+    coyoteTime = 8;
   } else {
     coyoteTime--;
   }
 
-  // jump buffer
+  // buffer
   if(jumpBuffer > 0) jumpBuffer--;
 
   // jump trigger
@@ -182,14 +189,7 @@ function movePlayer(){
 
   // variable jump height
   if(!keys[" "] && player.vy < 0){
-    player.vy += 0.3;
-  }
-
-  // floor
-  if(player.y > 550-player.r){
-    player.y = 550-player.r;
-    player.vy = 0;
-    player.onGround = true;
+    player.vy += 0.25;
   }
 
   // walls
@@ -204,7 +204,9 @@ function moveEnemies(){
   enemies.forEach(e=>{
     e.x += e.dir * e.speed;
 
-    if(e.x<50 || e.x>1950) e.dir *= -1;
+    if(e.x < 50 || e.x > 1950){
+      e.dir *= -1;
+    }
 
     if(Math.abs(player.x-e.x)<20 &&
        Math.abs(player.y-e.y)<20){
@@ -228,13 +230,13 @@ function moveBoss(){
 
   if(Math.abs(player.x-boss.x)<30 &&
      Math.abs(player.y-boss.y)<30 &&
-     player.vy>0){
+     player.vy > 0){
     boss.hp--;
     player.vy = -5;
   }
 
   if(boss.hp <= 0){
-    gameState="win";
+    gameState = "win";
   }
 }
 
@@ -251,7 +253,7 @@ function checkPortal(){
     level++;
 
     if(level > 5){
-      gameState="win";
+      gameState = "win";
       return;
     }
 
@@ -270,7 +272,6 @@ function draw(){
   ctx.clearRect(0,0,1000,600);
 
   if(gameState==="menu"){
-    ctx.fillStyle="white";
     ctx.fillText("Click Start",400,250);
     return;
   }
@@ -311,8 +312,7 @@ function draw(){
 
   ctx.restore();
 
-  ctx.fillStyle="white";
-  ctx.fillText("Level: "+level,20,20);
+  ctx.fillText("Level: "+level+" HP:"+Math.floor(player.energy),20,20);
 }
 
 // =====================
@@ -325,12 +325,12 @@ function loop(){
   moveBoss();
   checkPortal();
 
-  cameraX += (player.x-400-cameraX)*(0.1*SLOW);
+  cameraX += (player.x - 400 - cameraX) * (0.1 * SLOW);
 
   draw();
 
   if(player.energy <= 0){
-    gameState="gameover";
+    gameState = "gameover";
     return;
   }
 
