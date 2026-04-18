@@ -1,8 +1,8 @@
-```html id="fullmenucomplete"
+```html id="ultimatefinal10levels"
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena FINAL</title>
+<title>Ball Arena ULTIMATE</title>
 <style>
 body { margin:0; background:#111; color:white; text-align:center; }
 canvas { background:#222; display:block; margin:auto; }
@@ -21,9 +21,7 @@ const ctx = canvas.getContext("2d");
 let gameState = "menu";
 let level = 1;
 
-// =====================
 // PLAYER
-// =====================
 let player = {
   x:100,y:400,
   vx:0,vy:0,
@@ -39,17 +37,13 @@ let keys = {};
 let jumpBuffer = 0;
 let coyoteTime = 0;
 
-// =====================
 // WORLD
-// =====================
 let platforms = [];
 let enemies = [];
 let boss = null;
 let portal = {x:900,y:450,w:60,h:100};
 
-// =====================
 // INPUT
-// =====================
 document.addEventListener("keydown", e=>{
   keys[e.key]=true;
   if(e.key===" ") jumpBuffer=8;
@@ -58,16 +52,11 @@ document.addEventListener("keyup", e=>{
   keys[e.key]=false;
 });
 
-// CLICK TO START / RESTART
 canvas.addEventListener("click", ()=>{
-  if(gameState==="menu" || gameState==="win" || gameState==="gameover"){
-    startGame();
-  }
+  if(gameState!=="playing") startGame();
 });
 
-// =====================
-// START GAME
-// =====================
+// START
 function startGame(){
   level=1;
   player.hp=100;
@@ -109,18 +98,51 @@ function loadLevel(){
     }
   }
 
+  // BOSS LEVEL 5
   if(level===5){
     platforms.push({x:400,y:400,w:200,h:20});
-    boss = {x:700,y:300,r:30,hp:20};
+    boss = {x:700,y:300,r:30,hp:20,speed:1.2};
   }
 
-  if(level<5){
+  // NEW LEVELS 6–9
+  if(level===6){
+    for(let i=0;i<6;i++){
+      platforms.push({x:150+i*130,y:500-(i%2)*120,w:100,h:20});
+    }
+  }
+
+  if(level===7){
+    for(let i=0;i<5;i++){
+      platforms.push({x:200+i*150,y:450-i*60,w:120,h:20});
+    }
+  }
+
+  if(level===8){
+    for(let i=0;i<6;i++){
+      platforms.push({x:100+i*140,y:350+(i%3)*70,w:110,h:20});
+    }
+  }
+
+  if(level===9){
+    for(let i=0;i<5;i++){
+      platforms.push({x:300,y:520-i*90,w:120,h:20});
+    }
+  }
+
+  // FINAL BOSS LEVEL 10
+  if(level===10){
+    platforms.push({x:350,y:400,w:300,h:20});
+    boss = {x:700,y:250,r:35,hp:50,speed:2};
+  }
+
+  // ENEMIES (non-boss levels)
+  if(!boss){
     for(let i=0;i<level;i++){
       enemies.push({
-        x:300+i*200,
+        x:200+i*120,
         y:520,
         dir:1,
-        speed:1
+        speed:1 + level*0.1
       });
     }
   }
@@ -133,7 +155,7 @@ function loadLevel(){
 }
 
 // =====================
-// PLAYER MOVE
+// PLAYER
 // =====================
 function movePlayer(){
 
@@ -141,7 +163,6 @@ function movePlayer(){
   if(keys["ArrowRight"]) player.vx += player.speed;
 
   player.vx *= 0.9;
-
   player.vy += player.gravity;
 
   player.x += player.vx;
@@ -161,12 +182,6 @@ function movePlayer(){
     }
   });
 
-  if(player.y>550-player.r){
-    player.y=550-player.r;
-    player.vy=0;
-    player.onGround=true;
-  }
-
   if(player.onGround) coyoteTime=8;
   else coyoteTime--;
 
@@ -182,12 +197,18 @@ function movePlayer(){
     player.vy+=0.3;
   }
 
+  if(player.y>550-player.r){
+    player.y=550-player.r;
+    player.vy=0;
+    player.onGround=true;
+  }
+
   if(player.x<0) player.x=0;
   if(player.x>1000) player.x=1000;
 }
 
 // =====================
-// ENEMIES (KILLABLE)
+// ENEMIES
 // =====================
 function moveEnemies(){
 
@@ -198,18 +219,18 @@ function moveEnemies(){
 
     if(e.x<50||e.x>950) e.dir*=-1;
 
-    let dx = Math.abs(player.x - e.x);
-    let dy = player.y - e.y;
+    let dx=Math.abs(player.x-e.x);
+    let dy=player.y-e.y;
 
-    // stomp
-    if(dx < 20 && dy < 0 && dy > -30 && player.vy > 0){
+    // STOMP
+    if(dx<20 && dy<0 && dy>-30 && player.vy>0){
       enemies.splice(i,1);
-      player.vy = -7;
+      player.vy=-7;
       continue;
     }
 
-    // damage
-    if(dx < 20 && Math.abs(dy) < 20){
+    // DAMAGE
+    if(dx<20 && Math.abs(dy)<20){
       player.hp -= 0.5;
     }
   }
@@ -225,23 +246,28 @@ function moveBoss(){
   let dy=player.y-boss.y;
   let dist=Math.sqrt(dx*dx+dy*dy);
 
-  boss.x += dx/dist * 1.2;
-  boss.y += dy/dist * 1.2;
+  boss.x += dx/dist * boss.speed;
+  boss.y += dy/dist * boss.speed;
 
-  if(Math.abs(player.x-boss.x)<30 &&
-     Math.abs(player.y-boss.y)<30 &&
+  if(Math.abs(player.x-boss.x)<35 &&
+     Math.abs(player.y-boss.y)<35 &&
      player.vy>0){
     boss.hp--;
-    player.vy=-7;
+    player.vy=-8;
   }
 
-  if(Math.abs(player.x-boss.x)<30 &&
-     Math.abs(player.y-boss.y)<30){
+  if(Math.abs(player.x-boss.x)<35 &&
+     Math.abs(player.y-boss.y)<35){
     player.hp -= 1;
   }
 
   if(boss.hp<=0){
-    gameState="win";
+    if(level===10){
+      gameState="win";
+    } else {
+      level++;
+      loadLevel();
+    }
   }
 }
 
@@ -249,7 +275,7 @@ function moveBoss(){
 // PORTAL
 // =====================
 function checkPortal(){
-  if(level<5 && player.x>portal.x){
+  if(!boss && player.x>portal.x){
     level++;
     loadLevel();
   }
@@ -264,12 +290,10 @@ function draw(){
 
   // MENU
   if(gameState==="menu"){
-    ctx.fillStyle="white";
     ctx.font="40px Arial";
-    ctx.fillText("BALL ARENA", 350, 200);
-
+    ctx.fillText("BALL ARENA",350,200);
     ctx.font="20px Arial";
-    ctx.fillText("Click to Start", 420, 300);
+    ctx.fillText("Click to Start",420,300);
     return;
   }
 
@@ -277,10 +301,9 @@ function draw(){
   if(gameState==="win"){
     ctx.fillStyle="gold";
     ctx.font="40px Arial";
-    ctx.fillText("YOU WIN!", 380, 250);
-
+    ctx.fillText("YOU BEAT ALL 10 LEVELS!",250,250);
     ctx.font="20px Arial";
-    ctx.fillText("Click to Restart", 400, 320);
+    ctx.fillText("Click to Restart",400,320);
     return;
   }
 
@@ -288,10 +311,9 @@ function draw(){
   if(gameState==="gameover"){
     ctx.fillStyle="red";
     ctx.font="40px Arial";
-    ctx.fillText("GAME OVER", 360, 250);
-
+    ctx.fillText("GAME OVER",360,250);
     ctx.font="20px Arial";
-    ctx.fillText("Click to Restart", 400, 320);
+    ctx.fillText("Click to Restart",400,320);
     return;
   }
 
@@ -299,7 +321,7 @@ function draw(){
   ctx.fillStyle="#555";
   platforms.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
 
-  if(level<5){
+  if(!boss){
     ctx.fillStyle="yellow";
     ctx.fillRect(portal.x,portal.y,portal.w,portal.h);
   }
@@ -326,7 +348,6 @@ function draw(){
   ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
   ctx.fill();
 
-  ctx.fillStyle="white";
   ctx.fillText("Level: "+level+" HP:"+Math.floor(player.hp),20,20);
 }
 
@@ -350,7 +371,6 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
-// START LOOP ONLY
 loop();
 
 </script>
