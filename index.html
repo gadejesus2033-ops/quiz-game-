@@ -1,8 +1,8 @@
-```html id="ultimatefinal10levels"
+```html
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena ULTIMATE</title>
+<title>Ball Arena FINAL COMPLETE</title>
 <style>
 body { margin:0; background:#111; color:white; text-align:center; }
 canvas { background:#222; display:block; margin:auto; }
@@ -75,74 +75,87 @@ function loadLevel(){
 
   platforms.push({x:0,y:550,w:1000,h:50});
 
+  // LEVEL 1
   if(level===1){
     platforms.push({x:200,y:480,w:120,h:20});
     platforms.push({x:400,y:430,w:120,h:20});
   }
 
+  // LEVEL 2
   if(level===2){
     for(let i=0;i<4;i++){
       platforms.push({x:200+i*180,y:500-i*50,w:120,h:20});
     }
   }
 
+  // LEVEL 3
   if(level===3){
     for(let i=0;i<5;i++){
       platforms.push({x:100+i*180,y:400+(i%2)*80,w:120,h:20});
     }
   }
 
+  // LEVEL 4
   if(level===4){
     for(let i=0;i<5;i++){
       platforms.push({x:300,y:500-i*80,w:120,h:20});
     }
   }
 
-  // BOSS LEVEL 5
+  // LEVEL 5 BOSS
   if(level===5){
     platforms.push({x:400,y:400,w:200,h:20});
     boss = {x:700,y:300,r:30,hp:20,speed:1.2};
   }
 
-  // NEW LEVELS 6–9
+  // LEVEL 6 (zig-zag)
   if(level===6){
-    for(let i=0;i<6;i++){
-      platforms.push({x:150+i*130,y:500-(i%2)*120,w:100,h:20});
-    }
+    platforms.push({x:150,y:500,w:120,h:20});
+    platforms.push({x:350,y:450,w:120,h:20});
+    platforms.push({x:200,y:380,w:120,h:20});
+    platforms.push({x:450,y:320,w:120,h:20});
+    platforms.push({x:300,y:260,w:120,h:20});
   }
 
+  // LEVEL 7 (big gaps)
   if(level===7){
-    for(let i=0;i<5;i++){
-      platforms.push({x:200+i*150,y:450-i*60,w:120,h:20});
-    }
+    platforms.push({x:200,y:500,w:100,h:20});
+    platforms.push({x:400,y:450,w:100,h:20});
+    platforms.push({x:600,y:400,w:100,h:20});
+    platforms.push({x:800,y:350,w:100,h:20});
   }
 
+  // LEVEL 8 (alternating)
   if(level===8){
-    for(let i=0;i<6;i++){
-      platforms.push({x:100+i*140,y:350+(i%3)*70,w:110,h:20});
-    }
+    platforms.push({x:150,y:500,w:120,h:20});
+    platforms.push({x:300,y:420,w:120,h:20});
+    platforms.push({x:450,y:500,w:120,h:20});
+    platforms.push({x:600,y:420,w:120,h:20});
+    platforms.push({x:750,y:500,w:120,h:20});
   }
 
+  // LEVEL 9 (vertical tower)
   if(level===9){
-    for(let i=0;i<5;i++){
-      platforms.push({x:300,y:520-i*90,w:120,h:20});
-    }
+    platforms.push({x:400,y:500,w:120,h:20});
+    platforms.push({x:400,y:420,w:120,h:20});
+    platforms.push({x:400,y:340,w:120,h:20});
+    platforms.push({x:400,y:260,w:120,h:20});
   }
 
-  // FINAL BOSS LEVEL 10
+  // LEVEL 10 FINAL BOSS
   if(level===10){
     platforms.push({x:350,y:400,w:300,h:20});
     boss = {x:700,y:250,r:35,hp:50,speed:2};
   }
 
-  // ENEMIES (non-boss levels)
+  // ENEMIES
   if(!boss){
-    for(let i=0;i<level;i++){
+    for(let i=0;i<Math.min(level,5);i++){
       enemies.push({
-        x:200+i*120,
+        x:200+i*150,
         y:520,
         dir:1,
-        speed:1 + level*0.1
+        speed:1.2
       });
     }
   }
@@ -222,14 +235,12 @@ function moveEnemies(){
     let dx=Math.abs(player.x-e.x);
     let dy=player.y-e.y;
 
-    // STOMP
     if(dx<20 && dy<0 && dy>-30 && player.vy>0){
       enemies.splice(i,1);
       player.vy=-7;
       continue;
     }
 
-    // DAMAGE
     if(dx<20 && Math.abs(dy)<20){
       player.hp -= 0.5;
     }
@@ -262,6 +273,11 @@ function moveBoss(){
   }
 
   if(boss.hp<=0){
+
+    if(level===5){
+      player.hp = 100; // ⭐ reset health after first boss
+    }
+
     if(level===10){
       gameState="win";
     } else {
@@ -288,7 +304,6 @@ function draw(){
 
   ctx.clearRect(0,0,1000,600);
 
-  // MENU
   if(gameState==="menu"){
     ctx.font="40px Arial";
     ctx.fillText("BALL ARENA",350,200);
@@ -297,7 +312,6 @@ function draw(){
     return;
   }
 
-  // WIN
   if(gameState==="win"){
     ctx.fillStyle="gold";
     ctx.font="40px Arial";
@@ -307,7 +321,6 @@ function draw(){
     return;
   }
 
-  // GAME OVER
   if(gameState==="gameover"){
     ctx.fillStyle="red";
     ctx.font="40px Arial";
@@ -317,7 +330,6 @@ function draw(){
     return;
   }
 
-  // GAME
   ctx.fillStyle="#555";
   platforms.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
 
