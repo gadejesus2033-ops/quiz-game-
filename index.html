@@ -1,8 +1,8 @@
-```html id="finaljumpfix"
+```html id="truefinal"
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena FINAL FIXED</title>
+<title>Ball Arena COMPLETE</title>
 <style>
 body { margin:0; background:#111; color:white; text-align:center; overflow:hidden; }
 canvas { background:#222; display:block; margin:auto; }
@@ -13,7 +13,6 @@ button { padding:10px; margin:5px; }
 
 <h2>Ball Arena 🎮</h2>
 <button onclick="startGame()">Start Game</button>
-<div id="stats"></div>
 
 <canvas id="game" width="1000" height="600"></canvas>
 
@@ -28,25 +27,28 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 let level = 1;
-let gameState = "menu";
 let cameraX = 0;
+let gameState = "menu";
 
 // =====================
-// PLAYER (FIXED JUMP)
+// PLAYER (FINAL)
 // =====================
 let player = {
   x:100,y:400,
   vx:0,vy:0,
   r:15,
   speed:0.6 * SLOW,
-  jump:-4.5,        // FIXED
-  gravity:0.25,     // FIXED
+
+  jump:-7,        // higher jump
+  gravity:0.35,   // smooth fall
+
   onGround:false,
   energy:100
 };
 
 let keys = {};
-let jumpPressed = false;
+let jumpBuffer = 0;
+let coyoteTime = 0;
 
 // =====================
 // WORLD
@@ -55,7 +57,7 @@ let platforms = [];
 let enemies = [];
 let boss = null;
 
-let portal = { x:1800, y:430, w:80, h:120 };
+let portal = {x:1800,y:430,w:80,h:120};
 
 // =====================
 // INPUT
@@ -63,24 +65,20 @@ let portal = { x:1800, y:430, w:80, h:120 };
 document.addEventListener("keydown", e=>{
   keys[e.key]=true;
 
-  if(e.key===" " && !jumpPressed){
-    if(player.onGround){
-      player.vy = player.jump;
-      player.onGround=false;
-    }
-    jumpPressed=true;
+  if(e.key===" "){
+    jumpBuffer = 10;
   }
 });
 
 document.addEventListener("keyup", e=>{
   keys[e.key]=false;
-  if(e.key===" ") jumpPressed=false;
 });
 
 // =====================
 // LEVELS
 // =====================
 function generateLevel(){
+
   platforms=[];
   enemies=[];
   boss=null;
@@ -126,8 +124,8 @@ function generateLevel(){
         speed:1.2 * SLOW
       });
     }
-  }else{
-    boss={x:1500,y:300,r:25,hp:40};
+  } else {
+    boss = {x:1500,y:300,r:25,hp:40};
   }
 }
 
@@ -136,41 +134,65 @@ function generateLevel(){
 // =====================
 function movePlayer(){
 
+  // movement
   if(keys["ArrowLeft"]) player.vx -= player.speed;
   if(keys["ArrowRight"]) player.vx += player.speed;
 
   player.vx *= 0.9;
 
-  // BETTER JUMP CONTROL
-  if(!keys[" "] && player.vy < 0){
-    player.vy += 0.2;
-  }
-
+  // gravity
   player.vy += player.gravity;
 
+  // apply
   player.x += player.vx;
   player.y += player.vy;
 
-  player.onGround=false;
+  player.onGround = false;
 
+  // collision
   platforms.forEach(p=>{
     if(player.vy >= 0 &&
        player.x > p.x &&
        player.x < p.x+p.w &&
        player.y + player.r > p.y &&
        player.y + player.r < p.y + 20){
+
       player.y = p.y - player.r;
       player.vy = 0;
       player.onGround = true;
     }
   });
 
+  // coyote time
+  if(player.onGround){
+    coyoteTime = 10;
+  } else {
+    coyoteTime--;
+  }
+
+  // jump buffer
+  if(jumpBuffer > 0) jumpBuffer--;
+
+  // jump trigger
+  if(jumpBuffer > 0 && coyoteTime > 0){
+    player.vy = player.jump;
+    jumpBuffer = 0;
+    coyoteTime = 0;
+  }
+
+  // variable jump height
+  if(!keys[" "] && player.vy < 0){
+    player.vy += 0.3;
+  }
+
+  // floor
   if(player.y > 550-player.r){
     player.y = 550-player.r;
     player.vy = 0;
     player.onGround = true;
   }
 
+  // walls
   if(player.x < 0) player.x = 0;
   if(player.x > 2000) player.x = 2000;
 }
@@ -182,11 +204,10 @@ function moveEnemies(){
   enemies.forEach(e=>{
     e.x += e.dir * e.speed;
 
-    if(e.x < 50 || e.x > 1950){
-      e.dir *= -1;
-    }
+    if(e.x<50 || e.x>1950) e.dir *= -1;
 
-    if(Math.abs(player.x-e.x)<20 && Math.abs(player.y-e.y)<20){
+    if(Math.abs(player.x-e.x)<20 &&
+       Math.abs(player.y-e.y)<20){
       player.energy -= 0.2;
     }
   });
@@ -198,9 +219,9 @@ function moveEnemies(){
 function moveBoss(){
   if(!boss) return;
 
-  let dx=player.x-boss.x;
-  let dy=player.y-boss.y;
-  let dist=Math.sqrt(dx*dx+dy*dy);
+  let dx = player.x - boss.x;
+  let dy = player.y - boss.y;
+  let dist = Math.sqrt(dx*dx + dy*dy);
 
   boss.x += dx/dist * (1.5 * SLOW);
   boss.y += dy/dist * (1.5 * SLOW);
@@ -209,10 +230,10 @@ function moveBoss(){
      Math.abs(player.y-boss.y)<30 &&
      player.vy>0){
     boss.hp--;
-    player.vy = -4;
+    player.vy = -5;
   }
 
-  if(boss.hp<=0){
+  if(boss.hp <= 0){
     gameState="win";
   }
 }
@@ -222,20 +243,20 @@ function moveBoss(){
 // =====================
 function checkPortal(){
   if(
-    player.x+player.r > portal.x &&
-    player.x-player.r < portal.x+portal.w &&
-    player.y+player.r > portal.y &&
-    player.y-player.r < portal.y+portal.h
+    player.x + player.r > portal.x &&
+    player.x - player.r < portal.x + portal.w &&
+    player.y + player.r > portal.y &&
+    player.y - player.r < portal.y + portal.h
   ){
     level++;
 
-    if(level>5){
+    if(level > 5){
       gameState="win";
       return;
     }
 
-    player.x=100;
-    player.y=400;
+    player.x = 100;
+    player.y = 400;
 
     generateLevel();
   }
@@ -245,17 +266,12 @@ function checkPortal(){
 // DRAW
 // =====================
 function draw(){
+
   ctx.clearRect(0,0,1000,600);
 
   if(gameState==="menu"){
     ctx.fillStyle="white";
     ctx.fillText("Click Start",400,250);
-    return;
-  }
-
-  if(gameState==="gameover"){
-    ctx.fillStyle="red";
-    ctx.fillText("GAME OVER",400,250);
     return;
   }
 
@@ -295,23 +311,25 @@ function draw(){
 
   ctx.restore();
 
-  ctx.fillText("Level: "+level+" HP:"+Math.floor(player.energy),20,20);
+  ctx.fillStyle="white";
+  ctx.fillText("Level: "+level,20,20);
 }
 
 // =====================
 // LOOP
 // =====================
 function loop(){
+
   movePlayer();
   moveEnemies();
   moveBoss();
   checkPortal();
 
-  cameraX += (player.x-400-cameraX) * (0.1 * SLOW);
+  cameraX += (player.x-400-cameraX)*(0.1*SLOW);
 
   draw();
 
-  if(player.energy<=0){
+  if(player.energy <= 0){
     gameState="gameover";
     return;
   }
