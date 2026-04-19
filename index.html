@@ -1,413 +1,235 @@
-```html
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Ball Arena FINAL MOBILE</title>
-
+<meta charset="UTF-8" />
+<title>Minecraft Clone (Unified System)</title>
 <style>
-body {
-  margin:0;
-  background:#111;
-  color:white;
-  text-align:center;
-  font-family:Arial;
-}
-
-#gameContainer {
-  display:flex;
-  justify-content:center;
-}
-
-canvas {
-  background:#222;
-}
-
-/* CONTROLS BELOW GAME */
-#controls {
-  display:flex;
-  justify-content:center;
-  gap:40px;
-  margin-top:10px;
-}
-
-#controls button {
-  font-size:24px;
-  padding:15px 25px;
-  border-radius:10px;
-  border:none;
-  background:#333;
-  color:white;
-}
-
-/* MOBILE */
-@media (max-width:600px){
-  canvas {
-    width:100%;
-    height:auto;
-  }
-
-  #controls button {
-    font-size:28px;
-    padding:20px 30px;
-  }
+body { margin:0; overflow:hidden; }
+#overlay {
+ position:absolute; inset:0;
+ background:rgba(0,0,0,.6);
+ display:flex; align-items:center; justify-content:center;
+ flex-direction:column; color:white;
 }
 </style>
 </head>
-
 <body>
 
-<h2>Ball Arena 🎮</h2>
-
-<div id="gameContainer">
-  <canvas id="game" width="1000" height="600"></canvas>
+<div id="overlay">
+<h1>Click to Play</h1>
+<button id="startBtn">Start</button>
 </div>
 
-<div id="controls">
-  <button id="leftBtn">⬅️</button>
-  <button id="jumpBtn">🦘</button>
-  <button id="rightBtn">➡️</button>
-</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/PointerLockControls.js"></script>
 
 <script>
+// ===== SETUP =====
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
 
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
 
-let gameState="menu";
-let level=1;
+const light = new THREE.DirectionalLight(0xffffff,1);
+light.position.set(50,100,50);
+scene.add(light);
 
-// PLAYER
-let player={
-  x:100,y:400,
-  vx:0,vy:0,
-  r:15,
-  speed:0.5,
-  jump:-8,
-  gravity:0.4,
-  onGround:false,
-  hp:100
-};
+// ===== DATA =====
+const geometry = new THREE.BoxGeometry(1,1,1);
+const material = new THREE.MeshLambertMaterial({color:0x55aa55});
 
-let keys={};
-let jumpBuffer=0;
-let coyoteTime=0;
+const blocks = new Map();
+const heightMap = new Map();
 
-// TOUCH BUTTONS
-let touchLeft=false;
-let touchRight=false;
+function key(x,y,z){ return `${x},${y},${z}`; }
+function colKey(x,z){ return `${x},${z}`; }
 
-// WORLD
-let platforms=[];
-let enemies=[];
-let boss=null;
-let portal={x:900,y:450,w:60,h:100};
+function hasBlock(x,y,z){
+ return blocks.has(key(x,y,z));
+}
+
+function getGround(x,z){
+ return heightMap.get(colKey(x,z)) ?? -5;
+}
+
+// ===== CHUNKS =====
+const CHUNK_SIZE = 16;
+const RENDER_DISTANCE = 2;
+const chunks = new Map();
+
+function chunkKey(cx,cz){ return `${cx},${cz}`; }
+function noise(x,z){ return Math.sin(x*0.1)*Math.cos(z*0.1); }
+
+function generateChunk(cx,cz){
+ const k = chunkKey(cx,cz);
+ if(chunks.has(k)) return;
+
+ const group = new THREE.Group();
+
+ for(let x=0;x<CHUNK_SIZE;x++){
+  for(let z=0;z<CHUNK_SIZE;z++){
+
+   const worldX = cx*CHUNK_SIZE + x;
+   const worldZ = cz*CHUNK_SIZE + z;
+   const h = Math.floor(noise(worldX,worldZ)*5);
+
+   heightMap.set(colKey(worldX,worldZ), h);
+
+   for(let y=-5;y<=h;y++){
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(worldX,y,worldZ);
+
+    group.add(mesh);
+    blocks.set(key(worldX,y,worldZ), mesh);
+   }
+  }
+ }
+
+ scene.add(group);
+ chunks.set(k, group);
+}
+
+function updateChunks(){
+ const cx = Math.floor(camera.position.x / CHUNK_SIZE);
+ const cz = Math.floor(camera.position.z / CHUNK_SIZE);
+
+ for(let x=-RENDER_DISTANCE;x<=RENDER_DISTANCE;x++){
+  for(let z=-RENDER_DISTANCE;z<=RENDER_DISTANCE;z++){
+   generateChunk(cx+x, cz+z);
+  }
+ }
+
+ for(const [k, group] of chunks){
+  const [x,z] = k.split(',').map(Number);
+
+  if(Math.abs(x-cx)>RENDER_DISTANCE || Math.abs(z-cz)>RENDER_DISTANCE){
+
+   group.children.forEach(mesh=>{
+    const {x,y,z} = mesh.position;
+    blocks.delete(key(x,y,z));
+   });
+
+   scene.remove(group);
+   chunks.delete(k);
+  }
+ }
+}
+
+// ===== CONTROLS =====
+const controls = new THREE.PointerLockControls(camera, document.body);
+scene.add(controls.getObject());
+
+const overlay = document.getElementById('overlay');
+const startBtn = document.getElementById('startBtn');
+
+startBtn.onclick = ()=>controls.lock();
+
+controls.addEventListener('lock',()=>overlay.style.display='none');
+controls.addEventListener('unlock',()=>overlay.style.display='flex');
+
+document.addEventListener('click', (e)=>{
+ if(e.target.id !== "startBtn" && !controls.isLocked){
+  controls.lock();
+ }
+});
+
+// ===== PLAYER =====
+let velocityY = 0;
+const playerHeight = 1.8;
+
+let moveQueue = [];
+let moveCooldown = 0;
+const MOVE_DELAY = 0.12;
+
+camera.position.set(0,10,0);
 
 // INPUT
-document.addEventListener("keydown",e=>{
-  keys[e.key]=true;
-  if(e.key===" ") jumpBuffer=8;
+window.addEventListener('keydown',e=>{
+ if(e.code==='KeyW') moveQueue.push({x:0,z:-1});
+ if(e.code==='KeyS') moveQueue.push({x:0,z:1});
+ if(e.code==='KeyA') moveQueue.push({x:-1,z:0});
+ if(e.code==='KeyD') moveQueue.push({x:1,z:0});
+
+ if(e.code==='Space' && velocityY === 0){
+  velocityY = 0.25;
+ }
 });
-document.addEventListener("keyup",e=>keys[e.key]=false);
 
-canvas.addEventListener("click",()=>{
-  if(gameState!=="playing") startGame();
+// COLLISION
+function canStand(x,z,y){
+ const px = Math.round(x);
+ const pz = Math.round(z);
+
+ for(let dy=0; dy<2; dy++){
+  if(hasBlock(px, Math.floor(y)-dy, pz)){
+   return false;
+  }
+ }
+ return true;
+}
+
+function tryMove(dx,dz){
+ const tx = Math.round(camera.position.x) + dx;
+ const tz = Math.round(camera.position.z) + dz;
+ const ground = getGround(tx,tz);
+
+ const targetY = ground + playerHeight;
+
+ // allow stepping up 1 block
+ if(targetY - camera.position.y <= 1.1){
+  if(canStand(tx,tz,targetY)){
+   camera.position.x = tx;
+   camera.position.z = tz;
+   camera.position.y = targetY;
+   return true;
+  }
+ }
+
+ return false;
+}
+
+// ===== LOOP =====
+function animate(){
+ requestAnimationFrame(animate);
+
+ updateChunks();
+
+ // movement
+ moveCooldown -= 0.016;
+
+ if(moveCooldown<=0 && moveQueue.length){
+  const step = moveQueue.shift();
+  if(tryMove(step.x, step.z)){
+   moveCooldown = MOVE_DELAY;
+  }
+ }
+
+ // gravity
+ velocityY -= 0.01;
+ camera.position.y += velocityY;
+
+ const ground = getGround(camera.position.x, camera.position.z);
+ const floor = ground + playerHeight;
+
+ if(camera.position.y <= floor){
+  camera.position.y = floor;
+  velocityY = 0;
+ }
+
+ renderer.render(scene,camera);
+}
+animate();
+
+// resize
+window.addEventListener('resize',()=>{
+ camera.aspect = innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
 });
-
-// MOBILE BUTTONS
-leftBtn.ontouchstart=()=>touchLeft=true;
-leftBtn.ontouchend=()=>touchLeft=false;
-
-rightBtn.ontouchstart=()=>touchRight=true;
-rightBtn.ontouchend=()=>touchRight=false;
-
-jumpBtn.ontouchstart=()=>jumpBuffer=8;
-
-// START
-function startGame(){
-  level=1;
-  player.hp=100;
-  loadLevel();
-  gameState="playing";
-}
-
-// LEVELS
-function loadLevel(){
-
-  platforms=[];
-  enemies=[];
-  boss=null;
-
-  platforms.push({x:0,y:550,w:1000,h:50});
-
-  if(level===1){
-    platforms.push({x:200,y:480,w:120,h:20});
-    platforms.push({x:400,y:430,w:120,h:20});
-  }
-
-  if(level===2){
-    for(let i=0;i<4;i++){
-      platforms.push({x:200+i*180,y:500-i*50,w:120,h:20});
-    }
-  }
-
-  if(level===3){
-    for(let i=0;i<5;i++){
-      platforms.push({x:100+i*180,y:400+(i%2)*80,w:120,h:20});
-    }
-  }
-
-  if(level===4){
-    for(let i=0;i<5;i++){
-      platforms.push({x:300,y:500-i*80,w:120,h:20});
-    }
-  }
-
-  if(level===5){
-    platforms.push({x:400,y:400,w:200,h:20});
-    boss={x:700,y:300,r:30,hp:20,speed:1.2};
-  }
-
-  // UNIQUE LEVELS
-  if(level===6){
-    platforms.push({x:150,y:500,w:120,h:20});
-    platforms.push({x:350,y:450,w:120,h:20});
-    platforms.push({x:200,y:380,w:120,h:20});
-    platforms.push({x:450,y:320,w:120,h:20});
-    platforms.push({x:300,y:260,w:120,h:20});
-  }
-
-  if(level===7){
-    platforms.push({x:200,y:500,w:100,h:20});
-    platforms.push({x:400,y:450,w:100,h:20});
-    platforms.push({x:600,y:400,w:100,h:20});
-    platforms.push({x:800,y:350,w:100,h:20});
-  }
-
-  if(level===8){
-    platforms.push({x:150,y:500,w:120,h:20});
-    platforms.push({x:300,y:420,w:120,h:20});
-    platforms.push({x:450,y:500,w:120,h:20});
-    platforms.push({x:600,y:420,w:120,h:20});
-    platforms.push({x:750,y:500,w:120,h:20});
-  }
-
-  if(level===9){
-    platforms.push({x:400,y:500,w:120,h:20});
-    platforms.push({x:400,y:420,w:120,h:20});
-    platforms.push({x:400,y:340,w:120,h:20});
-    platforms.push({x:400,y:260,w:120,h:20});
-  }
-
-  if(level===10){
-    platforms.push({x:350,y:400,w:300,h:20});
-    boss={x:700,y:250,r:35,hp:50,speed:2};
-  }
-
-  if(!boss){
-    for(let i=0;i<Math.min(level,5);i++){
-      enemies.push({x:200+i*150,y:520,dir:1,speed:1.2});
-    }
-  }
-
-  player.x=100;
-  player.y=400;
-}
-
-// PLAYER
-function movePlayer(){
-
-  if(keys["ArrowLeft"]||touchLeft) player.vx-=player.speed;
-  if(keys["ArrowRight"]||touchRight) player.vx+=player.speed;
-
-  player.vx*=0.9;
-  player.vy+=player.gravity;
-
-  player.x+=player.vx;
-  player.y+=player.vy;
-
-  player.onGround=false;
-
-  platforms.forEach(p=>{
-    if(player.vy>=0 &&
-       player.x>p.x &&
-       player.x<p.x+p.w &&
-       player.y+player.r>p.y &&
-       player.y+player.r<p.y+20){
-      player.y=p.y-player.r;
-      player.vy=0;
-      player.onGround=true;
-    }
-  });
-
-  if(player.onGround) coyoteTime=8;
-  else coyoteTime--;
-
-  if(jumpBuffer>0) jumpBuffer--;
-
-  if(jumpBuffer>0 && coyoteTime>0){
-    player.vy=player.jump;
-    jumpBuffer=0;
-    coyoteTime=0;
-  }
-
-  if(!keys[" "] && player.vy<0){
-    player.vy+=0.3;
-  }
-
-  if(player.y>550-player.r){
-    player.y=550-player.r;
-    player.vy=0;
-    player.onGround=true;
-  }
-
-  if(player.x<0) player.x=0;
-  if(player.x>1000) player.x=1000;
-}
-
-// ENEMIES
-function moveEnemies(){
-  for(let i=enemies.length-1;i>=0;i--){
-    let e=enemies[i];
-    e.x+=e.dir*e.speed;
-    if(e.x<50||e.x>950) e.dir*=-1;
-
-    let dx=Math.abs(player.x-e.x);
-    let dy=player.y-e.y;
-
-    if(dx<20 && dy<0 && dy>-30 && player.vy>0){
-      enemies.splice(i,1);
-      player.vy=-7;
-      continue;
-    }
-
-    if(dx<20 && Math.abs(dy)<20){
-      player.hp-=0.5;
-    }
-  }
-}
-
-// BOSS
-function moveBoss(){
-  if(!boss) return;
-
-  let dx=player.x-boss.x;
-  let dy=player.y-boss.y;
-  let dist=Math.sqrt(dx*dx+dy*dy);
-
-  boss.x+=dx/dist*boss.speed;
-  boss.y+=dy/dist*boss.speed;
-
-  if(Math.abs(player.x-boss.x)<35 &&
-     Math.abs(player.y-boss.y)<35 &&
-     player.vy>0){
-    boss.hp--;
-    player.vy=-8;
-  }
-
-  if(Math.abs(player.x-boss.x)<35 &&
-     Math.abs(player.y-boss.y)<35){
-    player.hp-=1;
-  }
-
-  if(boss.hp<=0){
-    if(level===5) player.hp=100;
-
-    if(level===10){
-      gameState="win";
-    } else {
-      level++;
-      loadLevel();
-    }
-  }
-}
-
-// PORTAL
-function checkPortal(){
-  if(!boss && player.x>900){
-    level++;
-    loadLevel();
-  }
-}
-
-// DRAW
-function draw(){
-
-  ctx.clearRect(0,0,1000,600);
-
-  if(gameState==="menu"){
-    ctx.font="40px Arial";
-    ctx.fillText("BALL ARENA",350,200);
-    ctx.font="20px Arial";
-    ctx.fillText("Tap or Click to Start",350,300);
-    return;
-  }
-
-  if(gameState==="win"){
-    ctx.fillStyle="gold";
-    ctx.font="40px Arial";
-    ctx.fillText("YOU WIN!",400,250);
-    return;
-  }
-
-  if(gameState==="gameover"){
-    ctx.fillStyle="red";
-    ctx.font="40px Arial";
-    ctx.fillText("GAME OVER",350,250);
-    return;
-  }
-
-  ctx.fillStyle="#555";
-  platforms.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
-
-  if(!boss){
-    ctx.fillStyle="yellow";
-    ctx.fillRect(900,450,60,100);
-  }
-
-  ctx.fillStyle="red";
-  enemies.forEach(e=>{
-    ctx.beginPath();
-    ctx.arc(e.x,e.y,15,0,Math.PI*2);
-    ctx.fill();
-  });
-
-  if(boss){
-    ctx.fillStyle="purple";
-    ctx.beginPath();
-    ctx.arc(boss.x,boss.y,boss.r,0,Math.PI*2);
-    ctx.fill();
-
-    ctx.fillText("Boss HP: "+boss.hp,450,50);
-  }
-
-  ctx.fillStyle="cyan";
-  ctx.beginPath();
-  ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
-  ctx.fill();
-
-  ctx.fillText("Level:"+level+" HP:"+Math.floor(player.hp),20,20);
-}
-
-// LOOP
-function loop(){
-
-  if(gameState==="playing"){
-    movePlayer();
-    moveEnemies();
-    moveBoss();
-    checkPortal();
-
-    if(player.hp<=0) gameState="gameover";
-  }
-
-  draw();
-  requestAnimationFrame(loop);
-}
-
-loop();
-
 </script>
 
 </body>
 </html>
-```
