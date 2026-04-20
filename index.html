@@ -2,35 +2,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena FINAL MOBILE</title>
-
+<title>Ball Arena ULTIMATE FINAL</title>
 <style>
-body {
-  margin:0;
-  background:#111;
-  color:white;
-  text-align:center;
-  font-family:Arial;
-}
+body{margin:0;background:#111;color:white;text-align:center;font-family:Arial;}
+#gameContainer{display:flex;justify-content:center;}
+canvas{background:#222;}
 
-#gameContainer {
-  display:flex;
-  justify-content:center;
-}
-
-canvas {
-  background:#222;
-}
-
-/* CONTROLS BELOW GAME */
-#controls {
+#controls{
   display:flex;
   justify-content:center;
   gap:40px;
   margin-top:10px;
 }
 
-#controls button {
+#controls button{
   font-size:24px;
   padding:15px 25px;
   border-radius:10px;
@@ -39,17 +24,9 @@ canvas {
   color:white;
 }
 
-/* MOBILE */
 @media (max-width:600px){
-  canvas {
-    width:100%;
-    height:auto;
-  }
-
-  #controls button {
-    font-size:28px;
-    padding:20px 30px;
-  }
+  canvas{width:100%;height:auto;}
+  #controls button{font-size:28px;padding:20px 30px;}
 }
 </style>
 </head>
@@ -59,19 +36,19 @@ canvas {
 <h2>Ball Arena 🎮</h2>
 
 <div id="gameContainer">
-  <canvas id="game" width="1000" height="600"></canvas>
+<canvas id="game" width="1000" height="600"></canvas>
 </div>
 
 <div id="controls">
-  <button id="leftBtn">⬅️</button>
-  <button id="jumpBtn">🦘</button>
-  <button id="rightBtn">➡️</button>
+<button id="leftBtn">⬅️</button>
+<button id="jumpBtn">🦘</button>
+<button id="rightBtn">➡️</button>
 </div>
 
 <script>
 
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
 let gameState="menu";
 let level=1;
@@ -88,18 +65,11 @@ let player={
   hp:100
 };
 
-let keys={};
-let jumpBuffer=0;
-let coyoteTime=0;
-
-// TOUCH BUTTONS
-let touchLeft=false;
-let touchRight=false;
+let keys={},jumpBuffer=0,coyoteTime=0;
+let touchLeft=false,touchRight=false;
 
 // WORLD
-let platforms=[];
-let enemies=[];
-let boss=null;
+let platforms=[],enemies=[],boss=null,bossBullets=[];
 let portal={x:900,y:450,w:60,h:100};
 
 // INPUT
@@ -116,10 +86,8 @@ canvas.addEventListener("click",()=>{
 // MOBILE BUTTONS
 leftBtn.ontouchstart=()=>touchLeft=true;
 leftBtn.ontouchend=()=>touchLeft=false;
-
 rightBtn.ontouchstart=()=>touchRight=true;
 rightBtn.ontouchend=()=>touchRight=false;
-
 jumpBtn.ontouchstart=()=>jumpBuffer=8;
 
 // START
@@ -133,10 +101,7 @@ function startGame(){
 // LEVELS
 function loadLevel(){
 
-  platforms=[];
-  enemies=[];
-  boss=null;
-
+  platforms=[]; enemies=[]; boss=null; bossBullets=[];
   platforms.push({x:0,y:550,w:1000,h:50});
 
   if(level===1){
@@ -164,10 +129,9 @@ function loadLevel(){
 
   if(level===5){
     platforms.push({x:400,y:400,w:200,h:20});
-    boss={x:700,y:300,r:30,hp:20,speed:1.2};
+    boss={x:700,y:300,r:30,hp:20,speed:1.2,cooldown:60};
   }
 
-  // UNIQUE LEVELS
   if(level===6){
     platforms.push({x:150,y:500,w:120,h:20});
     platforms.push({x:350,y:450,w:120,h:20});
@@ -200,7 +164,41 @@ function loadLevel(){
 
   if(level===10){
     platforms.push({x:350,y:400,w:300,h:20});
-    boss={x:700,y:250,r:35,hp:50,speed:2};
+    boss={x:700,y:250,r:35,hp:50,speed:2,cooldown:60};
+  }
+
+  // PUZZLES
+  if(level===11){
+    platforms.push({x:200,y:500,w:80,h:20});
+    platforms.push({x:350,y:450,w:80,h:20});
+    platforms.push({x:500,y:400,w:80,h:20});
+    platforms.push({x:650,y:350,w:80,h:20});
+  }
+
+  if(level===12){
+    platforms.push({x:200,y:500,w:120,h:20});
+    platforms.push({x:400,y:450,w:120,h:20});
+    platforms.push({x:300,y:350,w:120,h:20});
+    platforms.push({x:600,y:300,w:120,h:20});
+  }
+
+  if(level===13){
+    platforms.push({x:250,y:500,w:60,h:20});
+    platforms.push({x:350,y:450,w:60,h:20});
+    platforms.push({x:450,y:400,w:60,h:20});
+    platforms.push({x:550,y:350,w:60,h:20});
+  }
+
+  if(level===14){
+    platforms.push({x:300,y:500,w:100,h:20});
+    platforms.push({x:500,y:420,w:100,h:20});
+    platforms.push({x:300,y:340,w:100,h:20});
+    platforms.push({x:500,y:260,w:100,h:20});
+  }
+
+  if(level===15){
+    platforms.push({x:350,y:400,w:300,h:20});
+    boss={x:700,y:250,r:35,hp:50,speed:2.2,cooldown:60};
   }
 
   if(!boss){
@@ -297,6 +295,17 @@ function moveBoss(){
   boss.x+=dx/dist*boss.speed;
   boss.y+=dy/dist*boss.speed;
 
+  boss.cooldown--;
+  if(boss.cooldown<=0){
+    bossBullets.push({
+      x:boss.x,
+      y:boss.y,
+      vx:(dx/dist)*4,
+      vy:(dy/dist)*4
+    });
+    boss.cooldown=60;
+  }
+
   if(Math.abs(player.x-boss.x)<35 &&
      Math.abs(player.y-boss.y)<35 &&
      player.vy>0){
@@ -312,11 +321,31 @@ function moveBoss(){
   if(boss.hp<=0){
     if(level===5) player.hp=100;
 
-    if(level===10){
+    if(level===15){
       gameState="win";
     } else {
       level++;
       loadLevel();
+    }
+  }
+}
+
+// BOSS BULLETS
+function moveBossBullets(){
+  for(let i=bossBullets.length-1;i>=0;i--){
+    let b=bossBullets[i];
+    b.x+=b.vx;
+    b.y+=b.vy;
+
+    if(Math.abs(player.x-b.x)<15 &&
+       Math.abs(player.y-b.y)<15){
+      player.hp-=5;
+      bossBullets.splice(i,1);
+      continue;
+    }
+
+    if(b.x<0||b.x>1000||b.y<0||b.y>600){
+      bossBullets.splice(i,1);
     }
   }
 }
@@ -371,6 +400,11 @@ function draw(){
     ctx.fill();
   });
 
+  ctx.fillStyle="orange";
+  bossBullets.forEach(b=>{
+    ctx.fillRect(b.x,b.y,6,6);
+  });
+
   if(boss){
     ctx.fillStyle="purple";
     ctx.beginPath();
@@ -395,6 +429,7 @@ function loop(){
     movePlayer();
     moveEnemies();
     moveBoss();
+    moveBossBullets();
     checkPortal();
 
     if(player.hp<=0) gameState="gameover";
