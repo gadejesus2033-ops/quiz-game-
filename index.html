@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Voxel Engine Ultimate</title>
+<title>Voxel Engine - No Clip Final</title>
 
 <style>
 body{margin:0;overflow:hidden;}
@@ -48,12 +48,12 @@ const renderer=new THREE.WebGLRenderer();
 renderer.setSize(innerWidth,innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// ===== GLOBAL OPTIMIZED GEO =====
+// ===== BLOCKS =====
 const BLOCK_GEO=new THREE.BoxGeometry(1,1,1);
 const BLOCK_MAT=new THREE.MeshLambertMaterial({color:0x3cb043});
 
 // ===== PLAYER =====
-const player={width:0.98,depth:0.98,height:2};
+const player={width:0.6,depth:0.6,height:1.8};
 let velY=0,onGround=false;
 
 const gravity=-0.015;
@@ -72,14 +72,10 @@ const ckey=(x,z)=>`${x},${z}`;
 
 // ===== NOISE =====
 function noise(x,z){
- return (
-  Math.sin(x*0.05)+
-  Math.cos(z*0.05)+
-  Math.sin((x+z)*0.03)
- )*6;
+ return (Math.sin(x*0.05)+Math.cos(z*0.05))*6;
 }
 
-// ===== EXPOSED CHECK =====
+// ===== EXPOSED =====
 function isExposed(x,y,z,data){
  return !(
   data[key(x+1,y,z)] &&
@@ -105,11 +101,9 @@ function createChunk(cx,cz){
 
    let wx=cx*CHUNK+x;
    let wz=cz*CHUNK+z;
-
    let h=Math.floor(noise(wx,wz));
 
    for(let y=-6;y<=h;y++){
-
     const k=key(wx,y,wz);
     data[k]=1;
     world.set(k,1);
@@ -117,10 +111,8 @@ function createChunk(cx,cz){
   }
  }
 
- // only render exposed
  for(const k in data){
   const [x,y,z]=k.split(",").map(Number);
-
   if(isExposed(x,y,z,data)){
    dummy.position.set(x,y,z);
    dummy.updateMatrix();
@@ -132,7 +124,6 @@ function createChunk(cx,cz){
  inst.instanceMatrix.needsUpdate=true;
 
  scene.add(inst);
-
  chunks.set(ckey(cx,cz),inst);
  chunkData.set(ckey(cx,cz),data);
 }
@@ -141,7 +132,6 @@ function createChunk(cx,cz){
 function rebuildChunk(cx,cz){
 
  const id=ckey(cx,cz);
-
  const old=chunks.get(id);
  if(old) scene.remove(old);
 
@@ -155,7 +145,6 @@ function rebuildChunk(cx,cz){
 
  for(const k in data){
   const [x,y,z]=k.split(",").map(Number);
-
   if(isExposed(x,y,z,data)){
    dummy.position.set(x,y,z);
    dummy.updateMatrix();
@@ -170,7 +159,7 @@ function rebuildChunk(cx,cz){
  chunks.set(id,inst);
 }
 
-// ===== LOAD =====
+// ===== LOAD / UNLOAD =====
 function updateChunks(){
 
  const cx=Math.floor(camera.position.x/CHUNK);
@@ -178,9 +167,7 @@ function updateChunks(){
 
  for(let x=-RENDER_DIST;x<=RENDER_DIST;x++){
   for(let z=-RENDER_DIST;z<=RENDER_DIST;z++){
-
    const id=ckey(cx+x,cz+z);
-
    if(!chunks.has(id)){
     createChunk(cx+x,cz+z);
    }
@@ -188,18 +175,14 @@ function updateChunks(){
  }
 }
 
-// ===== UNLOAD =====
 function unloadChunks(){
 
  const cx=Math.floor(camera.position.x/CHUNK);
  const cz=Math.floor(camera.position.z/CHUNK);
 
  for(const id of chunks.keys()){
-
   const [x,z]=id.split(",").map(Number);
-
   if(Math.abs(x-cx)>RENDER_DIST+1 || Math.abs(z-cz)>RENDER_DIST+1){
-
    scene.remove(chunks.get(id));
    chunks.delete(id);
    chunkData.delete(id);
@@ -207,62 +190,60 @@ function unloadChunks(){
  }
 }
 
-// ===== COLLISION =====
-function collide(px,py,pz){
-
- const hw=player.width/2;
- const hd=player.depth/2;
-
- const minX=Math.floor(px-hw);
- const maxX=Math.floor(px+hw);
- const minY=Math.floor(py);
- const maxY=Math.floor(py+player.height);
- const minZ=Math.floor(pz-hd);
- const maxZ=Math.floor(pz+hd);
-
- for(let x=minX;x<=maxX;x++){
-  for(let y=minY;y<=maxY;y++){
-   for(let z=minZ;z<=maxZ;z++){
-    if(world.has(`${x},${y},${z}`)) return true;
-   }
-  }
- }
- return false;
+// ===== SOLID CHECK =====
+function solid(x,y,z){
+ return world.has(`${x},${y},${z}`);
 }
 
-// ===== STEP =====
-function tryStep(nx,nz){
- if(!collide(nx,camera.position.y+1,nz)){
-  camera.position.y+=1;
-  return true;
- }
- return false;
-}
-
-// ===== MOVE =====
+// ===== MOVE (NO CLIP) =====
 function move(dx,dz){
 
- const steps=5;
+ let pos=camera.position;
 
- for(let i=0;i<steps;i++){
+ // X
+ pos.x+=dx;
+ if(solid(Math.floor(pos.x),Math.floor(pos.y-1),Math.floor(pos.z))){
+  pos.x-=dx;
+ }
 
-  let sx=dx/steps;
-  let sz=dz/steps;
+ // Z
+ pos.z+=dz;
+ if(solid(Math.floor(pos.x),Math.floor(pos.y-1),Math.floor(pos.z))){
+  pos.z-=dz;
+ }
 
-  let nx=camera.position.x+sx;
-  if(!collide(nx,camera.position.y,camera.position.z)){
-   camera.position.x=nx;
-  } else if(tryStep(nx,camera.position.z)){
-   camera.position.x=nx;
-  }
+}
 
-  let nz=camera.position.z+sz;
-  if(!collide(camera.position.x,camera.position.y,nz)){
-   camera.position.z=nz;
-  } else if(tryStep(camera.position.x,nz)){
-   camera.position.z=nz;
+// ===== GRAVITY (NO CLIP) =====
+function applyGravity(){
+
+ velY+=gravity;
+ let pos=camera.position;
+
+ pos.y+=velY;
+
+ let footY=Math.floor(pos.y-player.height);
+ let headY=Math.floor(pos.y);
+
+ onGround=false;
+
+ // falling
+ if(velY<=0){
+  if(solid(Math.floor(pos.x),footY,Math.floor(pos.z))){
+   pos.y=footY+1+player.height;
+   velY=0;
+   onGround=true;
   }
  }
+
+ // jumping
+ else{
+  if(solid(Math.floor(pos.x),headY,Math.floor(pos.z))){
+   pos.y=headY;
+   velY=0;
+  }
+ }
+
 }
 
 // ===== CONTROLS =====
@@ -286,7 +267,6 @@ onkeydown=e=>{
 
  if(e.code==="Space"&&onGround){
   velY=jump;
-  onGround=false;
  }
 };
 
@@ -317,7 +297,7 @@ addEventListener("mousedown",e=>{
 
  const data=chunkData.get(ckey(cx,cz));
 
- // BREAK
+ // break
  if(e.button===0){
   const k=key(bx,by,bz);
   if(data && data[k]){
@@ -327,7 +307,7 @@ addEventListener("mousedown",e=>{
   }
  }
 
- // PLACE
+ // place
  if(e.button===2){
   const px=bx+n.x;
   const py=by+n.y;
@@ -378,26 +358,7 @@ function animate(){
  if(k.d){dx+=right.x*speed;dz+=right.z*speed;}
 
  move(dx,dz);
-
- velY+=gravity;
- let ny=camera.position.y+velY;
-
- if(velY<=0){
-  if(collide(camera.position.x,ny-player.height,camera.position.z)){
-   camera.position.y=Math.floor(ny-player.height)+player.height;
-   velY=0;
-   onGround=true;
-  } else {
-   camera.position.y=ny;
-   onGround=false;
-  }
- } else {
-  if(collide(camera.position.x,ny,camera.position.z)){
-   velY=0;
-  } else {
-   camera.position.y=ny;
-  }
- }
+ applyGravity();
 
  renderer.render(scene,camera);
 }
