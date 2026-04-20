@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena ULTIMATE FINAL</title>
+<title>Ball Arena ULTIMATE FINAL v2</title>
 <style>
 body{margin:0;background:#111;color:white;text-align:center;font-family:Arial;}
 #gameContainer{display:flex;justify-content:center;}
@@ -319,7 +319,11 @@ function moveBoss(){
   }
 
   if(boss.hp<=0){
-    if(level===5) player.hp=100;
+
+    // ⭐ RESET AFTER LEVEL 5 AND 10
+    if(level===5 || level===10){
+      player.hp=100;
+    }
 
     if(level===15){
       gameState="win";
