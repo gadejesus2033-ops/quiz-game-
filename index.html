@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ball Arena ULTIMATE FINAL v2</title>
+<title>Ball Arena ULTIMATE FINAL v3</title>
 <style>
 body{margin:0;background:#111;color:white;text-align:center;font-family:Arial;}
 #gameContainer{display:flex;justify-content:center;}
@@ -284,7 +284,7 @@ function moveEnemies(){
   }
 }
 
-// BOSS
+// BOSS (FIXED COLLISION)
 function moveBoss(){
   if(!boss) return;
 
@@ -306,21 +306,20 @@ function moveBoss(){
     boss.cooldown=60;
   }
 
-  if(Math.abs(player.x-boss.x)<35 &&
-     Math.abs(player.y-boss.y)<35 &&
-     player.vy>0){
-    boss.hp--;
-    player.vy=-8;
-  }
+  let hitX = Math.abs(player.x - boss.x) < boss.r;
+  let hitY = Math.abs(player.y - boss.y) < boss.r;
 
-  if(Math.abs(player.x-boss.x)<35 &&
-     Math.abs(player.y-boss.y)<35){
-    player.hp-=1;
+  // ⭐ STOMP (SAFE)
+  if(hitX && player.y < boss.y && player.vy > 0){
+    boss.hp--;
+    player.vy = -8;
+  }
+  // 💥 SIDE DAMAGE
+  else if(hitX && hitY){
+    player.hp -= 1;
   }
 
   if(boss.hp<=0){
-
-    // ⭐ RESET AFTER LEVEL 5 AND 10
     if(level===5 || level===10){
       player.hp=100;
     }
